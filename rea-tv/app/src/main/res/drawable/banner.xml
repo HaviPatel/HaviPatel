@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 320x180 TV banner shown by Android TV / Fire TV app lists. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="315"
+                android:endColor="@color/rea_bg_end"
+                android:startColor="@color/rea_bg" />
+            <size android:width="320dp" android:height="180dp" />
+        </shape>
+    </item>
+    <item
+        android:drawable="@drawable/ic_glyph"
+        android:left="70dp"
+        android:right="70dp" />
+</layer-list>

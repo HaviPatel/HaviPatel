@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:angle="315"
+                android:endColor="@color/rea_bg_end"
+                android:startColor="@color/rea_bg" />
+            <size android:width="108dp" android:height="108dp" />
+        </shape>
+    </item>
+    <item android:drawable="@drawable/ic_glyph" />
+</layer-list>

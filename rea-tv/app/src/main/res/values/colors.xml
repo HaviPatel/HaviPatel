@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="rea_bg">#FF070B1A</color>
+    <color name="rea_bg_end">#FF1A1440</color>
+    <color name="rea_glyph">#FFFFFFFF</color>
+    <color name="rea_glass">#33FFFFFF</color>
+</resources>

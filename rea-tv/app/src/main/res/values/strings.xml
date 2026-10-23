@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">REA TV</string>
+    <string name="home_service_label">REA TV Home button</string>
+    <string name="home_service_description">Brings you back to REA TV when the Home button opens the Amazon home screen. It only reads which app is in front and never what is on screen.</string>
+</resources>

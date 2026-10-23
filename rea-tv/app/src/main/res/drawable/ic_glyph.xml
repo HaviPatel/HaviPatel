@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A rounded "screen" with a play mark: the REA TV glyph. Solid fills only (minSdk 22). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="@color/rea_glass"
+        android:pathData="M30,36 L78,36 Q84,36 84,42 L84,66 Q84,72 78,72 L30,72 Q24,72 24,66 L24,42 Q24,36 30,36 Z" />
+    <path
+        android:fillColor="@color/rea_glyph"
+        android:pathData="M48,45 L64,54 L48,63 Z" />
+    <path
+        android:fillColor="@color/rea_glyph"
+        android:pathData="M42,78 L66,78 L66,81 L42,81 Z" />
+</vector>
