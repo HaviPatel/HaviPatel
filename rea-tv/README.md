@@ -4,8 +4,9 @@ An Apple TV–style home screen for Amazon Fire TV Sticks. It has a Liquid Glass
 a Control Center, focus parallax, and nothing extra. It also comes with ADB scripts that remove
 Amazon bloat and tune RAM and storage.
 
-- **~2 MB APK, no internet permission.** No analytics, accounts, or icon packs, and no image
-  assets: wallpapers and icons are drawn in code.
+- **Small APK, no internet permission.** Compose ui/foundation/animation only, no Material, shrunk
+  by R8. No analytics, accounts, or icon packs, and no image assets: wallpapers and icons are drawn
+  in code.
 - **Built for 1 GB sticks.** Artwork is decoded at tile size, cached by byte budget, and handed
   back to the system as soon as you open an app. Only rows near the focus load artwork.
 - **Smooth on weak GPUs.** Focus, scrolling, and glass all run in the draw/graphics-layer phase,
@@ -25,12 +26,14 @@ Amazon bloat and tune RAM and storage.
 
 ## Compatibility
 
-| Device | Works |
+| Device | Status |
 |---|---|
-| Fire TV Stick 4K / 4K Max (both gens), Lite, 3rd gen, Cube: Fire OS 6, 7, 8 | ✅ |
-| Fire TV Stick 2nd gen: Fire OS 5 | ✅ (overlays use the wallpaper as their glass backdrop) |
-| Android TV / Google TV boxes | ✅ |
+| Fire TV Stick 4K / 4K Max (both gens), Lite, 3rd gen, Cube: Fire OS 6, 7, 8 | Supported target |
+| Fire TV Stick 2nd gen: Fire OS 5 | Supported (minSdk 22). Overlays use the wallpaper as their glass backdrop, since PixelCopy needs Android 8. |
+| Android TV / Google TV boxes | Supported (a real Home app there) |
 | Fire TV devices on **Vega OS** (e.g. Fire TV Stick 4K Select, 2025) | ❌ No Android apps or sideloading |
+
+> Not yet verified on physical hardware: please report what works on your stick.
 
 ## Install (about 5 minutes)
 
