@@ -17,8 +17,8 @@ Amazon bloat and tune RAM and storage.
 
 | | |
 |---|---|
-| **Home** | tvOS-style grid with nothing else on screen: like tvOS, there's no clock or button bar (the time is in Control Center). Every tile is the app's own banner, so the logos are the real ones. The top row owns the edge-to-edge **Top Shelf**: the focused app's banner blurred across the whole shelf (or a wash of its colors when the banner is mostly white), the artwork crisp on the right under a Liquid Glass edge, and its name on the left, fading into the black behind the rows. Deeper rows scroll up and pin near the top. |
-| **Focus** | Tiles lift toward you with a deep shadow, tilt from the direction you came, settle with a spring, and catch a specular glint. |
+| **Home** | tvOS-style grid with nothing else on screen: like tvOS, there's no clock or button bar (the time is in Control Center). Every tile is the app's own banner, so the logos are the real ones. The top row owns the edge-to-edge **Top Shelf**: the focused app's banner blurred across the whole shelf (or a wash of its colors when the banner is mostly white), fading into the black behind the rows, with the app's logo lifted off its banner as the title, the way tvOS shows a show's title treatment. Dark wordmarks turn light for the dark shelf, as brands do on dark backgrounds. Banners that are a photo, or whose logo runs into the edge, show the name and the banner as a card instead. Deeper rows scroll up and pin near the top. |
+| **Focus** | Tiles lift toward you with a deep shadow, tilt from the direction you came, settle with a spring, and catch a specular glint. Moving focus ticks and selecting clicks, using Fire TV's own navigation sounds, so its Navigation Sounds setting turns them off. |
 | **Liquid Glass** | Every panel refracts what's behind it (magnified, saturated, blurred backdrop). One shared light glides toward whatever has focus, so rim highlights and glows sweep across all the glass on screen. |
 | **Control Center** (☰ Menu button) | A glass panel from the right with the time in large type and round glass controls: Network, Bluetooth, **Memory** (free it up), Storage, Screensaver, Fire TV settings, REA TV settings, Amazon Home, plus live RAM and storage meters. |
 | **Hold OK on an app** | Open, Move (jiggle mode, then use the arrows), Move to / remove from Top Shelf, Hide, App info & cache, Uninstall. |
@@ -170,8 +170,14 @@ and `REA_KEY_PASSWORD`.
   sheen are gradients aimed at the shared light; artwork cards get the same edge light on top.
   See `glass/LiquidGlass.kt`.
 - **Memory.** Artwork is cached in an `LruCache` sized from the app's memory class (1/7, or 1/12
-  on 1 GB devices) and trimmed on `onTrimMemory`. The top shelf uses a separate cache holding at
-  most 2 entries. Overlay snapshots are dropped when another app opens.
+  on sticks with 1.5 GB or less) and trimmed on `onTrimMemory`. The Top Shelf keeps its own cache
+  of at most 5 shelves (2 on those sticks), and lifts each logo once, on a background thread.
+  Overlay snapshots are dropped when another app opens.
+- **Logo keying.** `data/LogoKey.kt` models the banner's fill from its border (a Coons patch, so
+  gradients key cleanly), takes each pixel's alpha from its distance to that fill against the
+  strongest logo color nearby, and un-mixes the fill from edge pixels so no halo is left. The shelf
+  loads the densest banner the app ships (`getDrawableForDensity`), since it draws it far larger
+  than a tile.
 
 ```
 app/src/main/java/com/reatv/launcher/

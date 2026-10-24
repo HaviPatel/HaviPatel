@@ -5,8 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,8 +26,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
@@ -39,18 +36,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
 import com.reatv.launcher.data.AppEntry
-import com.reatv.launcher.data.TileArt
-import com.reatv.launcher.glass.Blur
+import com.reatv.launcher.data.ShelfArt
 import com.reatv.launcher.glass.glassEdge
 import com.reatv.launcher.ui.LocalArt
 import com.reatv.launcher.ui.Rea
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
+import kotlin.math.sqrt
 
 /**
  * tvOS Top Shelf: full-bleed, edge to edge, fading into the black behind the app rows. The focused
- * top-row app's own artwork fills it, blurred and enlarged, with the artwork crisp on the right and
- * the app's name on the left. The first row of apps sits over the bottom of the fade, as on tvOS.
+ * top-row app's banner colors fill it, and its logo, lifted off the banner, sits bottom-left as the
+ * title treatment. Banners whose logo can't be lifted show the app's name and the banner as a card.
  */
 @Composable
 fun TopShelf(app: AppEntry?, metrics: HomeMetrics, collapse: () -> Float) {
@@ -69,37 +65,36 @@ fun TopShelf(app: AppEntry?, metrics: HomeMetrics, collapse: () -> Float) {
     }
 }
 
-private class ShelfModel(val app: AppEntry, val art: TileArt?, val ambient: ImageBitmap?)
+private class ShelfModel(val app: AppEntry, val shelf: ShelfArt)
 
 @Composable
 private fun ShelfContent(app: AppEntry, metrics: HomeMetrics) {
     val artLoader = LocalArt.current
     val density = LocalDensity.current
-    // Around the banner's native size: big enough to read as the hero, never a billboard.
-    val artHeight = min(metrics.firstRowTop * 0.52f, 180.dp)
-    val artWidth = artHeight * (16f / 9f)
-    val artWidthPx = with(density) { artWidth.roundToPx() }
-    val artHeightPx = with(density) { artHeight.roundToPx() }
+    // The fallback card, around the banner's native size: big enough to read, never a billboard.
+    val cardHeight = min(metrics.firstRowTop * 0.52f, 180.dp)
+    val cardWidth = cardHeight * (16f / 9f)
+    val cardWidthPx = with(density) { cardWidth.roundToPx() }
+    val cardHeightPx = with(density) { cardHeight.roundToPx() }
 
-    val model by produceState(ShelfModel(app, artLoader.peekHero(app.key), null), app.key) {
-        value = ShelfModel(app, artLoader.peekHero(app.key), null)
-        val art = value.art ?: artLoader.hero(app, artWidthPx, artHeightPx)
-        // The banner's own blur fills the shelf, unless the banner is mostly white (YouTube,
-        // Netflix's light variant...), which would glare: those get a wash of their colors instead.
-        val banner = art.banner
-        val ambient = if (banner != null && luminance(art.secondary) < 0.62f) {
-            withContext(Dispatchers.Default) { Blur.downscaleBlur(banner.asAndroidBitmap(), 96, radius = 4).asImageBitmap() }
-        } else {
-            null
+    // The shelf being left stays up until the next one is ready, then crossfades: no empty frame.
+    val model by produceState(artLoader.peekShelf(app.key)?.let { ShelfModel(app, it) }, app.key) {
+        val cached = artLoader.peekShelf(app.key)
+        if (cached != null) {
+            value = ShelfModel(app, cached)
+            return@produceState
         }
-        value = ShelfModel(app, art, ambient)
+        // Gliding along the top row shouldn't decode and key every banner it passes.
+        delay(140)
+        value = ShelfModel(app, artLoader.shelf(app, cardWidthPx, cardHeightPx))
     }
 
     Crossfade(targetState = model, animationSpec = tween(420), label = "shelf") { m ->
-        val art = m.art
-        val primary = art?.let { Color(it.primary) } ?: Color(0xFF2A3040)
+        if (m == null) return@Crossfade
+        val art = m.shelf.art
+        val primary = Color(art.primary)
         Box(Modifier.fillMaxSize()) {
-            val ambient = m.ambient
+            val ambient = m.shelf.ambient
             if (ambient != null) {
                 Image(
                     bitmap = ambient,
@@ -134,43 +129,63 @@ private fun ShelfContent(app: AppEntry, metrics: HomeMetrics) {
                 ),
             )
 
-            Column(
-                Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = metrics.edge, top = metrics.firstRowTop - 150.dp)
-                    .width(metrics.width * 0.4f),
-            ) {
-                BasicText(
-                    m.app.categoryLabel.uppercase(),
-                    style = Rea.text(13.sp, FontWeight.SemiBold, Rea.TextSecondary).copy(letterSpacing = 1.4.sp),
-                )
-                Spacer(Modifier.height(8.dp))
+            val logo = m.shelf.logo
+            if (logo != null) {
+                TitleLogo(logo, m.app.label, metrics)
+            } else {
                 BasicText(
                     m.app.label,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(start = metrics.edge, top = metrics.firstRowTop - 128.dp)
+                        .width(metrics.width * 0.4f),
                     style = Rea.text(48.sp, FontWeight.Bold, shadow = true),
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-            }
-
-            Box(
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(end = metrics.edge, top = metrics.height * 0.11f)
-                    .size(artWidth, artHeight)
-                    .shadow(28.dp, RoundedCornerShape(20.dp), clip = false)
-                    .clip(RoundedCornerShape(20.dp))
-                    .glassEdge(20.dp, strength = 0.8f),
-            ) {
-                TileArtwork(m.app, art)
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(end = metrics.edge, top = metrics.height * 0.11f)
+                        .size(cardWidth, cardHeight)
+                        .shadow(28.dp, RoundedCornerShape(20.dp), clip = false)
+                        .clip(RoundedCornerShape(20.dp))
+                        .glassEdge(20.dp, strength = 0.8f),
+                ) {
+                    TileArtwork(m.app, art)
+                }
             }
         }
     }
 }
 
-private fun luminance(argb: Int): Float {
-    val r = (argb shr 16) and 0xFF
-    val g = (argb shr 8) and 0xFF
-    val b = argb and 0xFF
-    return (0.2126f * r + 0.7152f * g + 0.0722f * b) / 255f
+/**
+ * The logo as a title treatment, bottom-left above the first row. Logos are sized to a common area
+ * rather than a common width, so a wide wordmark and a stacked mark carry the same visual weight.
+ */
+@Composable
+private fun BoxScope.TitleLogo(logo: ImageBitmap, label: String, metrics: HomeMetrics) {
+    val aspect = logo.width / logo.height.toFloat()
+    val maxW = metrics.width * 0.34f
+    val maxH = 112.dp
+    var w = 300.dp * sqrt(80f * aspect / 300f)
+    var h = w / aspect
+    if (w > maxW) {
+        w = maxW
+        h = w / aspect
+    }
+    if (h > maxH) {
+        h = maxH
+        w = h * aspect
+    }
+    Image(
+        bitmap = logo,
+        contentDescription = label,
+        modifier = Modifier
+            .align(Alignment.TopStart)
+            .padding(start = metrics.edge, top = metrics.firstRowTop - 56.dp - h)
+            .size(w, h),
+        contentScale = ContentScale.Fit,
+        filterQuality = FilterQuality.Medium,
+    )
 }

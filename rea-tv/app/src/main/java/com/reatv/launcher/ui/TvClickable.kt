@@ -4,7 +4,9 @@ import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyInputModifierNode
+import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.currentValueOf
 
 /**
  * Remote-friendly click: OK fires on release, holding OK fires [onLongClick] (Android marks the
@@ -36,7 +38,7 @@ private class TvClickElement(
 private class TvClickNode(
     var onClick: () -> Unit,
     var onLongClick: (() -> Unit)?,
-) : Modifier.Node(), KeyInputModifierNode {
+) : Modifier.Node(), KeyInputModifierNode, CompositionLocalConsumerModifierNode {
     private var armed = false
     private var longFired = false
 
@@ -52,6 +54,7 @@ private class TvClickNode(
                     val long = onLongClick
                     if (armed && !longFired && long != null) {
                         longFired = true
+                        currentValueOf(LocalUiSounds)?.onSelect()
                         long()
                     }
                 }
@@ -61,7 +64,10 @@ private class TvClickNode(
                 val click = armed && !longFired
                 armed = false
                 longFired = false
-                if (click) onClick()
+                if (click) {
+                    currentValueOf(LocalUiSounds)?.onSelect()
+                    onClick()
+                }
                 return true
             }
         }

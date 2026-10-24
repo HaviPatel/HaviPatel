@@ -66,6 +66,7 @@ import com.reatv.launcher.ui.FrostedBackground
 import com.reatv.launcher.ui.GlassRow
 import com.reatv.launcher.ui.Glyph
 import com.reatv.launcher.ui.LocalSettings
+import com.reatv.launcher.ui.LocalUiSounds
 import com.reatv.launcher.ui.Rea
 import com.reatv.launcher.ui.ReaIcon
 import com.reatv.launcher.ui.requestFocusSoon
@@ -172,6 +173,7 @@ private fun CategoryList(
         if (reduceMotion) y.snapTo(index * pitchPx) else y.animateTo(index * pitchPx, spring(dampingRatio = 0.66f, stiffness = 340f))
     }
     var listFocused by remember { mutableStateOf(false) }
+    val sounds = LocalUiSounds.current
     val emphasis = animateFloatAsState(if (listFocused) 1f else 0f, label = "lens")
     val emphasisFn = remember(emphasis) { { emphasis.value } }
 
@@ -199,7 +201,12 @@ private fun CategoryList(
                     Modifier
                         .fillMaxWidth()
                         .height(rowHeight)
-                        .onFocusChanged { if (it.isFocused) onSelect(s) }
+                        .onFocusChanged {
+                            if (it.isFocused) {
+                                sounds?.onFocusMoved()
+                                onSelect(s)
+                            }
+                        }
                         .tvClickable {
                             try {
                                 contentFirst.requestFocus()

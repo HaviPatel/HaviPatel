@@ -94,6 +94,7 @@ fun ReaRoot(activity: MainActivity, events: SharedFlow<HomeEvent>) {
     val currentApps by rememberUpdatedState(apps)
 
     val home = remember { HomeState() }
+    val sounds = remember(view) { UiSounds(view) }
     val wallpaper = remember { BackdropSource() }
     val overlayBackdrop = remember { BackdropSource() }
     val light = remember { GlassLight() }
@@ -207,6 +208,7 @@ fun ReaRoot(activity: MainActivity, events: SharedFlow<HomeEvent>) {
     fun onKey(event: KeyEvent): Boolean {
         val native = event.nativeKeyEvent
         if (native.action == AndroidKeyEvent.ACTION_DOWN) {
+            sounds.onDpad(native.keyCode)
             when (native.keyCode) {
                 AndroidKeyEvent.KEYCODE_DPAD_LEFT -> home.lastDirX = -1
                 AndroidKeyEvent.KEYCODE_DPAD_RIGHT -> home.lastDirX = 1
@@ -330,6 +332,7 @@ fun ReaRoot(activity: MainActivity, events: SharedFlow<HomeEvent>) {
             LocalLightTarget provides lightTarget,
             LocalGlassStyle provides glassStyle,
             LocalReduceTransparency provides settings.reduceTransparency,
+            LocalUiSounds provides sounds,
         ) {
             Box(Modifier.fillMaxSize().onPreviewKeyEvent { onKey(it) }) {
                 WallpaperLayer(wallpaper)

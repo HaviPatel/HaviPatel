@@ -16,6 +16,7 @@ import com.reatv.launcher.rea
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.min
 
 /**
  * Home-button redirect for Fire OS 6, which never binds third-party accessibility services.
@@ -74,7 +75,9 @@ class HomeWatchService : Service() {
     private fun follow() {
         Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND)
         val myUid = Process.myUid()
+        var retryMs = RETRY_MIN_MS
         while (running) {
+            val startedAt = SystemClock.elapsedRealtime()
             try {
                 // Only lines from now on: never react to a Home press that happened before we started.
                 val since = SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US).format(Date())
@@ -92,7 +95,10 @@ class HomeWatchService : Service() {
                 process.destroy()
             } catch (ignored: Exception) {
             }
-            if (running) SystemClock.sleep(2_000) // logcat ended (e.g. log buffer reset): start again
+            // logcat ended (e.g. log buffer reset): start again. If it keeps dying straight away (a
+            // logcat that rejects the arguments), back off instead of respawning every 2 s forever.
+            retryMs = if (SystemClock.elapsedRealtime() - startedAt < 10_000) min(retryMs * 2, RETRY_MAX_MS) else RETRY_MIN_MS
+            if (running) SystemClock.sleep(retryMs)
         }
     }
 
@@ -143,6 +149,8 @@ class HomeWatchService : Service() {
         private const val CHANNEL = "home"
         private const val NOTIFICATION_ID = 7
         private const val EXTRA_BOOT = "boot"
+        private const val RETRY_MIN_MS = 1_000L
+        private const val RETRY_MAX_MS = 5 * 60 * 1000L
 
         @Volatile
         var isRunning = false

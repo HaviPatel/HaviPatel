@@ -8,11 +8,13 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.os.Process
+import android.util.DisplayMetrics
 import android.util.LruCache
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import com.reatv.launcher.glass.Blur
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
@@ -34,6 +36,13 @@ class TileArt(
 }
 
 /**
+ * Top Shelf artwork: the banner at shelf size, a blurred fill for behind it (null when the banner is
+ * mostly white and would glare), and the app's logo lifted off the banner when [LogoKey] can.
+ */
+@Immutable
+class ShelfArt(val art: TileArt, val ambient: ImageBitmap?, val logo: ImageBitmap?)
+
+/**
  * Loads and caches tile artwork, sized exactly to the tile so nothing larger than what is on screen
  * stays in memory. The cache is bounded by bytes and dropped when the system asks for memory back,
  * so the streaming app in front always wins.
@@ -50,7 +59,7 @@ class ArtLoader(context: Context, private val lowRam: Boolean) {
     private val cache = object : LruCache<String, TileArt>(maxBytes) {
         override fun sizeOf(key: String, value: TileArt): Int = max(1, value.byteSize)
     }
-    private val heroCache = LruCache<String, TileArt>(2)
+    private val shelfCache = LruCache<String, ShelfArt>(if (lowRam) 2 else 5)
 
     private val dispatcher = Executors.newFixedThreadPool(2) { runnable ->
         Thread({
@@ -61,7 +70,7 @@ class ArtLoader(context: Context, private val lowRam: Boolean) {
 
     fun peek(key: String): TileArt? = cache.get(key)
 
-    fun peekHero(key: String): TileArt? = heroCache.get(key)
+    fun peekShelf(key: String): ShelfArt? = shelfCache.get(key)
 
     suspend fun tile(app: AppEntry, widthPx: Int, heightPx: Int): TileArt {
         cache.get(app.key)?.let { return it }
@@ -70,21 +79,21 @@ class ArtLoader(context: Context, private val lowRam: Boolean) {
         }
     }
 
-    suspend fun hero(app: AppEntry, widthPx: Int, heightPx: Int): TileArt {
-        heroCache.get(app.key)?.let { return it }
+    suspend fun shelf(app: AppEntry, widthPx: Int, heightPx: Int): ShelfArt {
+        shelfCache.get(app.key)?.let { return it }
         return withContext(dispatcher) {
-            heroCache.get(app.key) ?: render(app, widthPx, heightPx).also { heroCache.put(app.key, it) }
+            shelfCache.get(app.key) ?: renderShelf(app, widthPx, heightPx).also { shelfCache.put(app.key, it) }
         }
     }
 
     fun evict(packageName: String) {
         cache.remove(packageName)
-        heroCache.remove(packageName)
+        shelfCache.remove(packageName)
     }
 
     fun clear() {
         cache.evictAll()
-        heroCache.evictAll()
+        shelfCache.evictAll()
     }
 
     fun onTrimMemory(level: Int) {
@@ -92,29 +101,47 @@ class ArtLoader(context: Context, private val lowRam: Boolean) {
         when {
             level >= ComponentCallbacks2.TRIM_MEMORY_MODERATE -> clear()
             level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND -> {
-                heroCache.evictAll()
+                shelfCache.evictAll()
                 cache.trimToSize(maxBytes / 3)
             }
             level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN -> {
-                heroCache.evictAll()
+                shelfCache.evictAll()
                 if (lowRam) cache.trimToSize(maxBytes / 2)
             }
             level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL -> clear()
             level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW -> {
-                heroCache.evictAll()
+                shelfCache.evictAll()
                 cache.trimToSize(maxBytes / 2)
             }
         }
     }
 
-    private fun render(app: AppEntry, width: Int, height: Int): TileArt {
+    private fun renderShelf(app: AppEntry, width: Int, height: Int): ShelfArt {
+        val art = render(app, width, height, dense = true)
+        val banner = art.banner?.asAndroidBitmap() ?: return ShelfArt(art, null, null)
+        val ambient = if (luminance(art.secondary) < 0.62f) {
+            Blur.downscaleBlur(banner, 96, radius = 4).asImageBitmap()
+        } else {
+            null
+        }
+        val pixels = IntArray(banner.width * banner.height)
+        banner.getPixels(pixels, 0, banner.width, 0, 0, banner.width, banner.height)
+        val logo = LogoKey.extract(pixels, banner.width, banner.height)?.let {
+            Bitmap.createBitmap(it.pixels, it.width, it.height, Bitmap.Config.ARGB_8888).asImageBitmap()
+        }
+        // With a logo the shelf never shows the banner card: keep only its colors.
+        val kept = if (logo != null) TileArt(null, null, art.primary, art.secondary) else art
+        return ShelfArt(kept, ambient, logo)
+    }
+
+    private fun render(app: AppEntry, width: Int, height: Int, dense: Boolean = false): TileArt {
         if (app.kind == AppEntry.Kind.SystemSettings) {
             return TileArt(null, null, 0xFF5B6270.toInt(), 0xFF22252D.toInt())
         }
         val w = max(16, width)
         val h = max(9, height)
         val component = app.component
-        val banner: Drawable? = try {
+        val banner: Drawable? = (if (dense) denseBanner(app) else null) ?: try {
             if (component != null) pm.getActivityBanner(component) else pm.getApplicationBanner(app.packageName)
         } catch (e: Exception) {
             null
@@ -134,6 +161,21 @@ class ArtLoader(context: Context, private val lowRam: Boolean) {
         val (primary, secondary) = accentColors(bitmap)
         return TileArt(null, bitmap.asImageBitmap(), primary, secondary)
     }
+
+    /**
+     * The densest banner the app ships, for the shelf, which draws it far larger than a tile: the
+     * system would hand back the one for the screen's density, often 320x180, and upscale it.
+     */
+    private fun denseBanner(app: AppEntry): Drawable? = try {
+        val info = pm.getApplicationInfo(app.packageName, 0)
+        val id = app.component?.let { pm.getActivityInfo(it, 0).banner }?.takeIf { it != 0 } ?: info.banner
+        if (id == 0) null else pm.getResourcesForApplication(info).getDrawableForDensity(id, DisplayMetrics.DENSITY_XXXHIGH, null)
+    } catch (e: Exception) {
+        null
+    }
+
+    private fun luminance(argb: Int): Float =
+        (0.2126f * Color.red(argb) + 0.7152f * Color.green(argb) + 0.0722f * Color.blue(argb)) / 255f
 
     private fun drawableToBitmap(drawable: Drawable, w: Int, h: Int, crop: Boolean): Bitmap {
         val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)

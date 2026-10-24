@@ -81,9 +81,10 @@ object Aurora {
             )
             canvas.drawRect(0f, 0f, w, h, paint)
         }
-        // Like tvOS, the rows sit on black: fade to pure black under the Top Shelf, and darken the
-        // left for the shelf's title.
-        paint.shader = LinearGradient(0f, h * 0.30f, 0f, h * 0.78f, 0x00000000, 0xFF000000.toInt(), Shader.TileMode.CLAMP)
+        // Like tvOS, the rows sit on black: fade to pure black before the Top Shelf ends (at about
+        // 0.7 of the height) so its own fade to black meets black, not a step; and darken the left
+        // for the shelf's title.
+        paint.shader = LinearGradient(0f, h * 0.30f, 0f, h * 0.66f, 0x00000000, 0xFF000000.toInt(), Shader.TileMode.CLAMP)
         canvas.drawRect(0f, 0f, w, h, paint)
         paint.shader = LinearGradient(0f, 0f, w * 0.65f, 0f, 0x66000000, 0x00000000, Shader.TileMode.CLAMP)
         canvas.drawRect(0f, 0f, w, h, paint)

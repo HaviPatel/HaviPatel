@@ -88,6 +88,7 @@ fun GlassButton(
 ) {
     val settings = LocalSettings.current
     val lightTarget = LocalLightTarget.current
+    val sounds = LocalUiSounds.current
     var focused by remember { mutableStateOf(false) }
     var center by remember { mutableStateOf(Offset.Unspecified) }
     val progress = animateFloatAsState(
@@ -111,6 +112,7 @@ fun GlassButton(
                 focused = it.isFocused
                 if (it.isFocused) {
                     if (center != Offset.Unspecified) lightTarget.target = center - Offset(0f, 260f)
+                    sounds?.onFocusMoved()
                     onFocused?.invoke()
                 }
             }

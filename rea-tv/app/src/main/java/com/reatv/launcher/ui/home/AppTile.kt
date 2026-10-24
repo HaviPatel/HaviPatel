@@ -65,6 +65,7 @@ import com.reatv.launcher.data.TileArt
 import com.reatv.launcher.ui.Glyph
 import com.reatv.launcher.ui.LocalArt
 import com.reatv.launcher.ui.LocalSettings
+import com.reatv.launcher.ui.LocalUiSounds
 import com.reatv.launcher.ui.Rea
 import com.reatv.launcher.ui.ReaIcon
 import com.reatv.launcher.ui.tvClickable
@@ -88,6 +89,7 @@ fun AppTile(
     onLongClick: () -> Unit,
 ) {
     val settings = LocalSettings.current
+    val sounds = LocalUiSounds.current
     val artLoader = LocalArt.current
     val density = LocalDensity.current
     val widthPx = with(density) { metrics.tileW.roundToPx() }
@@ -162,7 +164,10 @@ fun AppTile(
                 }
                 .onFocusChanged {
                     focused = it.isFocused
-                    if (it.isFocused) state.onTileFocused(app, row, column)
+                    if (it.isFocused) {
+                        state.onTileFocused(app, row, column)
+                        sounds?.onFocusMoved()
+                    }
                 }
                 .tvClickable(onLongClick, onClick)
                 .focusRequester(requester)

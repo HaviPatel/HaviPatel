@@ -36,7 +36,7 @@ object SystemInfo {
         return StorageStats(stat.totalBytes, stat.availableBytes)
     }
 
-    /** Fire TV Stick Lite and other 1 GB devices get smaller buffers and caches. */
+    /** Sticks with 1.5 GB or less (Lite, 4K 1st gen, and older) get smaller buffers and caches. */
     fun isLowRamDevice(context: Context): Boolean {
         val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         return am.isLowRamDevice || memory(context).totalBytes < 1_600L * 1024 * 1024
