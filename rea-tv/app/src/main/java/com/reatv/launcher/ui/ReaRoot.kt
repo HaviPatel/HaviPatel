@@ -105,7 +105,7 @@ fun ReaRoot(activity: MainActivity, events: SharedFlow<HomeEvent>) {
     var openingOverlay by remember { mutableStateOf(false) }
     var menuApp by remember { mutableStateOf<AppEntry?>(null) }
     var settingsSection by remember { mutableStateOf(SettingsSection.Appearance) }
-    var homeLinked by remember { mutableStateOf(!isFireTv || HomeRedirect.isServiceEnabled(activity)) }
+    var homeLinked by remember { mutableStateOf(!isFireTv || HomeRedirect.isLinked(activity)) }
 
     val glassStyle = when (settings.glass) {
         GlassLevel.Clear -> GlassStyle.Clear
@@ -280,7 +280,7 @@ fun ReaRoot(activity: MainActivity, events: SharedFlow<HomeEvent>) {
                 }
                 HomeEvent.Resumed -> {
                     homeLinked = !isFireTv || !settings.replaceAmazonHome ||
-                        HomeRedirect.isServiceEnabled(activity) || HomeRedirect.ensureServiceEnabled(activity)
+                        HomeRedirect.isLinked(activity) || HomeRedirect.ensureServiceEnabled(activity)
                 }
                 HomeEvent.Hidden -> {
                     if (overlay == null) overlayBackdrop.current = null
@@ -341,8 +341,6 @@ fun ReaRoot(activity: MainActivity, events: SharedFlow<HomeEvent>) {
                     homeButtonWarning = isFireTv && settings.replaceAmazonHome && !homeLinked,
                     onLaunch = ::launchApp,
                     onOptions = { show(Overlay.AppOptions(it)) },
-                    onControlCenter = { show(Overlay.ControlCenter) },
-                    onSettings = { show(Overlay.Settings(SettingsSection.Appearance)) },
                     onFixHomeButton = { show(Overlay.Settings(SettingsSection.HomeButton)) },
                 )
 

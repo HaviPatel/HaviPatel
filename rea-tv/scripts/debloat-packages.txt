@@ -1,43 +1,90 @@
-# REA TV debloat list for Amazon Fire TV (Fire OS 6/7/8).
+# REA TV debloat list for Amazon Fire TV.
+#
+# Built from the list tested on the Fire TV Stick 4K 1st gen (AFTMM, Fire OS 6.7.1.1, NS6711/5908) in
+# cleanyourtv, examples/amazon-fire-tv-stick-4k-2018 (MIT, https://github.com/Gathin23/cleanyourtv):
+# applied on two units of that model and build, survived reboots, nothing had to be re-enabled.
+# On other Fire OS versions, packages that don't exist are skipped and protected ones are reported.
 #
 # Format: tier|package|what it is
-#   1 = ads, telemetry, promos (safe for everyone)
-#   2 = Amazon apps you may not use (Photos, Music, Freevee, Kids, Prime Video...)
-#   3 = advanced: Alexa voice, system updates, push messaging, Appstore
+#   1 = telemetry, ads, sponsored rows, promos (safe for everyone)
+#   2 = Amazon apps and services you may not use (Live tab, Kids, Music, Photos, Silk, Alexa extras)
+#   3 = things you'd notice: Alexa voice search, Prime Video, casting, the Appstore
 #
-# Packages are only ever disabled with `pm disable-user --user 0`, which is fully reversible
-# (scripts/rea.sh restore, or a factory reset). Packages that are missing on your build are skipped;
-# protected ones simply fail and are reported. Amazon's launcher, setup, settings and core
-# services are deliberately absent: the scripts refuse to touch them.
+# Only ever disabled with `pm disable-user --user 0` (fully reversible: scripts/rea.sh restore, or a
+# factory reset). Amazon's launcher, setup, settings, keyboard and core services are not listed, and
+# the scripts refuse to touch them.
+#
+# Protected on Fire OS 6 (pm disable-user is refused without root), so not listed:
+# com.amazon.client.metrics, com.amazon.device.metrics, com.amazon.minerva.client.api,
+# com.amazon.device.logmanager, com.amazon.device.crashmanager, com.amazon.diode,
+# com.fireos.usagestats.proxy, com.amazon.ftvads.deeplinking, com.amazon.tv.csapp, com.amazon.tv.oobe,
+# com.amazon.tcomm, com.amazon.securitysyncclient, com.amazon.whisperlink.core.android, and the OTA updater.
+#
+# Debloating cannot remove the sponsored banner on Amazon's own home (its launcher fetches it from
+# amazon-adsystem.com). With REA TV as your home you don't see it; otherwise block *.amazon-adsystem.com
+# on your router, or set an ad-blocking DNS through a static IP in the Fire TV's Wi-Fi settings
+# (Private DNS needs Android 9; Fire OS 6 is Android 7.1).
 
-1|com.amazon.device.crashmanager|Crash report uploader
-1|com.amazon.client.metrics|Usage metrics client
+# Telemetry, metrics and logs
 1|com.amazon.client.metrics.api|Usage metrics API
-1|com.amazon.device.metrics|Device metrics (protected on some builds)
+1|com.amazon.metrics.api|Metrics API
+1|com.amazon.tv.fw.metrics|Framework metrics
+1|com.amazon.wirelessmetrics.service|Wireless metrics
+1|com.amazon.perfcollection|Performance data collection
 1|com.amazon.dp.logger|Diagnostics logger
-1|com.amazon.kso|Sponsored content / special offers
+1|com.amazon.ceviche|Data collection pipelines
+1|com.amazon.tv.developer.dataservice|Content personalization data shared with third-party apps
+1|com.amazon.wifilocker|Uploads your Wi-Fi passwords to Amazon
+1|com.amazon.privacypassservice|Privacy pass token service
+# Ads, sponsored rows and promos
+1|com.amazon.kso.blackbird|Launcher ad sync (sponsored banner and rows)
+1|com.amazon.sneakpeek|Sponsored "Sneak Peek" previews
+1|com.amazon.hybridadidservice|Advertising ID service
+1|com.amazon.tv.easyupgrade|"Upgrade your Fire TV" promos
+1|com.amazon.device.sale.service|Sale and deal campaigns
 1|com.amazon.shoptv.client|Amazon Shopping on TV
-1|com.amazon.storm.lightning.tutorial|Fire TV tutorial videos
+1|com.amazon.shoptv.firetv.client|Amazon Shopping on TV
+1|com.amazon.providers.contentsupport|Content support provider
+1|com.amazon.systemnotices|System notices
+1|com.amazon.uxnotification|Notification popups
 1|com.amazon.tv.releasenotes|"What's new" release notes
-1|com.amazon.ags.app|Amazon GameCircle
+1|com.amazon.tmm.tutorial|Remote tutorial
+1|com.amazon.storm.lightning.tutorial|Remote app tutorial
 
-2|com.amazon.bueller.photos|Amazon Photos (also powers the Amazon Photos screensaver)
-2|com.amazon.bueller.music|Amazon Music
+# Live tab, channels and stubs
+2|com.amazon.hedwig|Fire TV Channels (free ad-supported channels row and Live input)
+2|com.amazon.tv.livetv|Live tab and guide
+2|com.amazon.franktvinput|Live TV input feeding the Live tab
+2|com.amazon.livedeviceservice|Live device service
+2|com.amazon.gamehub|Games hub and Luna cards
 2|com.amazon.imdb.tv.android.app|Freevee
-2|com.amazon.tv.livetv|Live TV guide integration
-2|com.amazon.firebat|Amazon Kids+
-2|com.amazon.avod|Prime Video (legacy)
-2|com.amazon.amazonvideo.livingroom|Prime Video
-2|com.amazon.wcast.sink|Display mirroring (Miracast)
-2|com.amazon.tv.legal.notices|Legal notices viewer
+2|com.amazon.minitv.android.app|miniTV
+# Preloaded Amazon apps
+2|com.amazon.tahoe|Amazon Kids (FreeTime)
+2|com.amazon.bueller.music|Amazon Music
+2|com.amazon.bueller.photos|Amazon Photos (also its screensaver)
+2|com.amazon.cloud9|Silk browser
+2|com.amazon.tv.website_launcher|Opens websites in Silk
+2|com.imdb.livingroom.firetv|IMDb
+2|com.amazon.whad|Whole-home audio (multi-room music)
+2|com.amazon.whasettings|Whole-home audio settings
+2|com.amazon.wha.mediabrowserservice|Whole-home audio media browser
+2|com.amazon.whisperjoin.middleware.np|Frustration-free setup of other Amazon devices
+2|com.amazon.whisperjoin.wss.wifiprovisioner|Frustration-free setup Wi-Fi provisioner
+2|com.amazon.tv.ffsprovisioneeclient|Frustration-free setup client
+2|com.amazon.ods.kindleconnect|"Show on Fire TV" from an Echo or Fire tablet
+# Alexa extras (voice search itself is tier 3)
+2|com.amazon.tv.alexaalerts|Alexa alarms, timers and reminders
+2|com.amazon.tv.alexanotifications|Alexa notifications
+2|com.amazon.alexa.externalmediaplayer.fireos|Alexa music playback
+2|com.amazon.alexamediaplayer.runtime.ftv|Alexa media player runtime
+2|com.amazon.aiondec|Alexa skill connections
 
-3|com.amazon.vizzini|Alexa voice (voice search stops working)
-3|com.amazon.alexa.externalmediaplayer.fireos|Alexa media playback integration
-3|com.amazon.tv.alexaalerts|Alexa alerts and reminders
-3|com.amazon.device.software.ota|System update downloader (you stop getting security updates)
-3|com.amazon.device.software.ota.override|System update override
-3|com.amazon.tv.forcedotaupdater.v2|Forced update prompt
-3|com.amazon.tcomm|Amazon device messaging (may break the Fire TV phone remote)
-3|com.amazon.device.messaging|Push messaging (ADM), some apps need it for notifications
-3|com.amazon.venezia|Amazon Appstore (apps stop auto-updating)
-3|com.ivona.tts.oem|IVONA voices (needed by VoiceView screen reader)
+# Tier 3 was disabled on the second test unit and survived reboots, but hasn't been lived with for days.
+3|com.amazon.vizzini|Alexa voice search (Fire OS turns it back on at every boot)
+3|com.amazon.firebat|Prime Video
+3|com.amazon.tv.support|Prime Video helper
+3|com.amazon.cast.sink|Display mirroring (Miracast)
+3|com.amazon.dialservice|Casting from phone apps (DIAL)
+3|com.amazon.tv.forcedotaupdater.v2|Forced update prompt (Amazon no longer ships updates for the 1st-gen 4K stick)
+3|com.amazon.venezia|Amazon Appstore (apps stop updating; not tested on this stick)

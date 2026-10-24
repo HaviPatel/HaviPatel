@@ -21,7 +21,7 @@ class HomeMetrics(val width: Dp, val height: Dp, val columns: Int) {
     val gap = width * 0.026f
     val tileW = (width - edge * 2 - gap * (columns - 1)) / columns
     val tileH = tileW * 0.5625f
-    val corner = tileW * 0.075f
+    val corner = tileW * 0.05f
     val labelSpace = 30.dp
     val pitch = tileH + labelSpace + 14.dp
     val firstRowTop = height * 0.6f

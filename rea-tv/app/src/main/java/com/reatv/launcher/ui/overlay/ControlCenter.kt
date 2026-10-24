@@ -33,6 +33,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -93,17 +94,17 @@ fun AnimatedVisibilityScope.ControlCenter(onDismiss: () -> Unit, actions: Contro
 
     val tiles = listOf(
         Tile(ReaIcon.Wifi, "Network", vitals.network.title, Rea.Accent, actions.wifi),
-        Tile(ReaIcon.Bluetooth, "Bluetooth", "Remotes & devices", Rea.Accent, actions.bluetooth),
-        Tile(ReaIcon.Bolt, "Free memory", vitals.memory?.let { SystemInfo.formatBytes(it.availableBytes) + " free" } ?: "…", Rea.Positive, actions.freeMemory),
+        Tile(ReaIcon.Bluetooth, "Bluetooth", "Devices", Rea.Accent, actions.bluetooth),
+        Tile(ReaIcon.Bolt, "Memory", vitals.memory?.let { SystemInfo.formatBytes(it.availableBytes) + " free" } ?: "…", Rea.Positive, actions.freeMemory),
         Tile(ReaIcon.Storage, "Storage", vitals.storage?.let { SystemInfo.formatBytes(it.freeBytes) + " free" } ?: "…", Rea.Warning, actions.storage),
         Tile(ReaIcon.Moon, "Screensaver", "Start now", Color(0xFFBF5AF2), actions.screensaver),
-        Tile(ReaIcon.Gear, "Fire TV", "System settings", Color.White, actions.systemSettings),
+        Tile(ReaIcon.Gear, "Fire TV", "Settings", Color.White, actions.systemSettings),
         Tile(ReaIcon.Sparkle, "REA TV", "Look & feel", Color(0xFF64D2FF), actions.reaSettings),
-        Tile(ReaIcon.Home, "Amazon Home", "Open stock home", Color.White, actions.stockHome),
+        Tile(ReaIcon.Home, "Amazon", "Stock home", Color.White, actions.stockHome),
     )
 
     Box(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.28f)))
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.30f)))
         Column(
             Modifier
                 .align(Alignment.CenterEnd)
@@ -111,33 +112,30 @@ fun AnimatedVisibilityScope.ControlCenter(onDismiss: () -> Unit, actions: Contro
                     enter = slideInHorizontally(spring(dampingRatio = 0.86f, stiffness = 380f)) { it / 2 },
                     exit = slideOutHorizontally { it / 2 },
                 )
-                .padding(24.dp)
-                .width(352.dp)
+                .padding(22.dp)
+                .width(372.dp)
                 .fillMaxHeight()
-                .liquidGlass(34.dp, LocalGlassStyle.current.panel())
-                .padding(horizontal = 20.dp, vertical = 18.dp)
+                .liquidGlass(40.dp, LocalGlassStyle.current.panel())
+                .padding(horizontal = 26.dp, vertical = 24.dp)
                 .verticalScroll(rememberScrollState()),
         ) {
-            BasicText(time, style = Rea.text(44.sp, FontWeight.Light))
-            BasicText(date, style = Rea.text(15.sp, color = Rea.TextSecondary))
-            Spacer(Modifier.height(16.dp))
-            tiles.chunked(2).forEachIndexed { r, pair ->
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    pair.forEachIndexed { c, tile ->
-                        ControlTile(
-                            tile = tile,
-                            modifier = Modifier.weight(1f),
-                            focusRequester = if (r == 0 && c == 0) first else null,
-                        )
+            // tvOS Control Center: the time large and bold at the top, then round glass controls.
+            BasicText(time, style = Rea.text(56.sp, FontWeight.Bold, tabular = true))
+            BasicText(date, style = Rea.text(16.sp, FontWeight.Medium, Rea.TextSecondary))
+            Spacer(Modifier.height(24.dp))
+            tiles.chunked(4).forEachIndexed { r, row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    row.forEachIndexed { c, tile ->
+                        ControlButton(tile = tile, focusRequester = if (r == 0 && c == 0) first else null)
                     }
                 }
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(18.dp))
             }
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(4.dp))
             vitals.memory?.let { m ->
                 VitalRow("Memory", "${SystemInfo.formatBytes(m.usedBytes)} of ${SystemInfo.formatBytes(m.totalBytes)}", m.usedFraction, Rea.Positive)
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
             vitals.storage?.let { s ->
                 VitalRow("Storage", "${SystemInfo.formatBytes(s.freeBytes)} free", s.usedFraction, Rea.Warning)
             }
@@ -145,35 +143,33 @@ fun AnimatedVisibilityScope.ControlCenter(onDismiss: () -> Unit, actions: Contro
     }
 }
 
+/** A round Liquid Glass control with its caption underneath, as in tvOS / iOS Control Center. */
 @Composable
-private fun ControlTile(tile: Tile, modifier: Modifier, focusRequester: FocusRequester?) {
-    GlassButton(
-        onClick = tile.action,
-        modifier = modifier.height(62.dp),
-        cornerRadius = 18.dp,
-        focusRequester = focusRequester,
-        scaleOnFocus = 1.06f,
-    ) { p ->
-        Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Glyph(tile.icon, Modifier.size(22.dp), tint = { Rea.onGlass(p(), tile.tint) })
-            Spacer(Modifier.width(10.dp))
-            Column {
-                BasicText(
-                    tile.title,
-                    style = Rea.text(14.sp, FontWeight.SemiBold),
-                    color = { Rea.onGlass(p()) },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                BasicText(
-                    tile.subtitle,
-                    style = Rea.text(11.sp),
-                    color = { Rea.onGlass(p(), Rea.TextSecondary) },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+private fun ControlButton(tile: Tile, focusRequester: FocusRequester?) {
+    Column(Modifier.width(76.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        GlassButton(
+            onClick = tile.action,
+            modifier = Modifier.size(62.dp),
+            cornerRadius = 31.dp,
+            focusRequester = focusRequester,
+            scaleOnFocus = 1.12f,
+            contentAlignment = Alignment.Center,
+        ) { p ->
+            Glyph(tile.icon, Modifier.size(24.dp), tint = { Rea.onGlass(p(), tile.tint) })
         }
+        Spacer(Modifier.height(8.dp))
+        BasicText(
+            tile.title,
+            style = Rea.text(12.sp, FontWeight.Medium).copy(textAlign = TextAlign.Center),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        BasicText(
+            tile.subtitle,
+            style = Rea.text(10.sp, color = Rea.TextTertiary).copy(textAlign = TextAlign.Center),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

@@ -82,6 +82,7 @@ fun GlassButton(
     onFocused: (() -> Unit)? = null,
     style: GlassStyle? = null,
     scaleOnFocus: Float = 1.05f,
+    restOpacity: Float = 1f,
     contentAlignment: Alignment = Alignment.CenterStart,
     content: @Composable BoxScope.(progress: () -> Float) -> Unit,
 ) {
@@ -105,7 +106,7 @@ fun GlassButton(
                 scaleX = s
                 scaleY = s
             }
-            .liquidGlass(cornerRadius, style, progressFn)
+            .liquidGlass(cornerRadius, style, progressFn, restOpacity)
             .onFocusChanged {
                 focused = it.isFocused
                 if (it.isFocused) {
@@ -135,6 +136,7 @@ fun GlassRow(
     focusRequester: FocusRequester? = null,
     onFocused: (() -> Unit)? = null,
     tint: Color = Rea.TextPrimary,
+    quiet: Boolean = true,
 ) {
     GlassButton(
         onClick = onClick,
@@ -144,6 +146,8 @@ fun GlassRow(
         focusRequester = focusRequester,
         onFocused = onFocused,
         scaleOnFocus = 1.03f,
+        // tvOS lists: rows are plain text until focus turns them into bright glass.
+        restOpacity = if (quiet) 0.22f else 1f,
     ) { p ->
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) {

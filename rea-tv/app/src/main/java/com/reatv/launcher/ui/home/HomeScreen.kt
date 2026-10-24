@@ -48,8 +48,6 @@ fun HomeScreen(
     homeButtonWarning: Boolean,
     onLaunch: (AppEntry, IntRect) -> Unit,
     onOptions: (AppEntry) -> Unit,
-    onControlCenter: () -> Unit,
-    onSettings: () -> Unit,
     onFixHomeButton: () -> Unit,
 ) {
     val settings = LocalSettings.current
@@ -150,16 +148,15 @@ fun HomeScreen(
             Spacer(Modifier.height(metrics.height * 0.4f))
         }
 
-        StatusBar(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 22.dp, end = metrics.edge)
-                .graphicsLayer { alpha = 1f - collapse() },
-            interactive = interactive,
-            homeButtonWarning = homeButtonWarning,
-            onControlCenter = onControlCenter,
-            onSettings = onSettings,
-            onFixHomeButton = onFixHomeButton,
-        )
+        if (homeButtonWarning) {
+            HomeButtonChip(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = metrics.height * 0.05f + 16.dp, end = metrics.edge + 16.dp)
+                    .graphicsLayer { alpha = 1f - collapse() },
+                interactive = interactive,
+                onClick = onFixHomeButton,
+            )
+        }
     }
 }

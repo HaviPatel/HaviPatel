@@ -31,7 +31,14 @@ object SystemIntents {
         }
     }
 
-    fun openSystemSettings(context: Context) = start(context, Intent(Settings.ACTION_SETTINGS))
+    /**
+     * On Fire OS 6, Settings is a row inside Amazon's home screen, so the Home watchers are told to
+     * leave Amazon's home alone; pressing Home brings REA TV back as usual.
+     */
+    fun openSystemSettings(context: Context): Boolean {
+        HomeRedirect.allowStockHomeFor(10 * 60 * 1000L)
+        return start(context, Intent(Settings.ACTION_SETTINGS))
+    }
 
     fun openWifi(context: Context) = start(context, Intent(Settings.ACTION_WIFI_SETTINGS)) || openSystemSettings(context)
 

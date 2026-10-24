@@ -10,6 +10,7 @@ import com.reatv.launcher.data.AppRepository
 import com.reatv.launcher.data.ArtLoader
 import com.reatv.launcher.data.LauncherSettings
 import com.reatv.launcher.system.HomeRedirect
+import com.reatv.launcher.system.HomeWatchService
 import com.reatv.launcher.system.SystemInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +30,8 @@ class ReaApp : Application() {
         registerPackageReceiver()
         scope.launch { apps.refresh() }
         if (settings.replaceAmazonHome && SystemInfo.isFireTv(this)) {
-            HomeRedirect.ensureServiceEnabled(this)
+            HomeRedirect.ensureServiceEnabled(this) // Fire OS 7/8
+            HomeWatchService.start(this) // Fire OS 6 (needs READ_LOGS from scripts/rea.sh setup)
         }
     }
 

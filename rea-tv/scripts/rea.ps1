@@ -27,7 +27,7 @@ $Adb = if ($env:ADB) { $env:ADB } else { "adb" }
 $Never = @(
     "android", "com.android.systemui", "com.android.settings", "com.android.providers.settings",
     "com.amazon.tv.launcher", "com.amazon.firehomestarter", "com.amazon.tv.settings.v2", "com.amazon.tv.oobe",
-    "com.amazon.dcp", "com.amazon.tv.inputpreference.service", "com.amazon.device.sale.service",
+    "com.amazon.dcp", "com.amazon.tv.inputpreference.service",
     "com.amazon.tv.keypolicymanager", "com.amazon.tv.ime", $Pkg
 )
 
@@ -92,6 +92,11 @@ function Cmd-Setup {
     Title "Linking REA TV to your Fire TV..."
     $grant = Shell @("pm", "grant", $Pkg, "android.permission.WRITE_SECURE_SETTINGS")
     if ($grant) { Warn "This Fire OS build refuses WRITE_SECURE_SETTINGS; linking manually instead" } else { Ok "Self-repair permission granted" }
+    # Fire OS 6 never runs third-party accessibility services: the Home watcher reads the system log instead.
+    Shell @("pm", "grant", $Pkg, "android.permission.READ_LOGS") | Out-Null
+    $perms = Shell @("dumpsys", "package", $Pkg)
+    if ($perms -like "*android.permission.READ_LOGS: granted=true*") { Ok "Home watcher allowed (READ_LOGS): works on every Fire OS version" }
+    else { Warn "READ_LOGS was refused; only the accessibility route is left (Fire OS 7/8)" }
     $ops = Shell @("appops", "set", $Pkg, "GET_USAGE_STATS", "allow")
     if ($ops) { Warn "Couldn't grant usage access; Storage will show totals only" } else { Ok "Usage access granted" }
 
@@ -102,13 +107,20 @@ function Cmd-Setup {
     Shell @("settings", "put", "secure", "enabled_accessibility_services", $updated) | Out-Null
     Shell @("settings", "put", "secure", "accessibility_enabled", "1") | Out-Null
     $after = Shell @("settings", "get", "secure", "enabled_accessibility_services")
-    if ((":$after:").Contains(":$($Service):")) { Ok "Home button linked: Home now returns to REA TV" }
-    else { Fail "Fire OS rejected the Home button service. REA TV still works as an app." }
+    if ((":$after:").Contains(":$($Service):")) { Ok "Accessibility route enabled (used on Fire OS 7/8; Fire OS 6 ignores it)" }
+    else { Warn "Fire OS rejected the accessibility route" }
 
     Title "Compiling REA TV ahead-of-time..."
     Shell @("cmd", "package", "compile", "-m", "speed", "-f", $Pkg) | Out-Null
     Ok "Compiled"
+    # Restart REA TV so it picks up the new permissions and starts the Home watcher.
+    Shell @("am", "force-stop", $Pkg) | Out-Null
     Shell @("am", "start", "-n", "$Pkg/.MainActivity") | Out-Null
+    Start-Sleep -Seconds 2
+    $services = Shell @("dumpsys", "activity", "services", $Pkg)
+    if ($services -like "*HomeWatchService*") { Ok "Home watcher running: Home now returns to REA TV" }
+    elseif ((":$after:").Contains(":$($Service):")) { Warn "Home watcher not running; relying on the accessibility route" }
+    else { Fail "Nothing can take over the Home button on this build. Open REA TV from Your Apps." }
     Ok "Done. Press Home on your remote to try it."
 }
 
@@ -119,6 +131,8 @@ function Cmd-Unlink {
     if ($kept) { Shell @("settings", "put", "secure", "enabled_accessibility_services", ($kept -join ":")) | Out-Null }
     else { Shell @("settings", "delete", "secure", "enabled_accessibility_services") | Out-Null }
     Shell @("pm", "revoke", $Pkg, "android.permission.WRITE_SECURE_SETTINGS") | Out-Null
+    Shell @("pm", "revoke", $Pkg, "android.permission.READ_LOGS") | Out-Null
+    Shell @("am", "force-stop", $Pkg) | Out-Null
     Ok "Home button returned to Amazon's home screen"
 }
 

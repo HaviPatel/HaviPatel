@@ -23,7 +23,7 @@ ADB="${ADB:-adb}"
 NEVER=(
   android com.android.systemui com.android.settings com.android.providers.settings
   com.amazon.tv.launcher com.amazon.firehomestarter com.amazon.tv.settings.v2 com.amazon.tv.oobe
-  com.amazon.dcp com.amazon.tv.inputpreference.service com.amazon.device.sale.service
+  com.amazon.dcp com.amazon.tv.inputpreference.service
   com.amazon.tv.keypolicymanager com.amazon.tv.ime "$PKG"
 )
 
@@ -85,6 +85,15 @@ cmd_setup() {
     warn "This Fire OS build refuses WRITE_SECURE_SETTINGS; linking manually instead"
   fi
 
+  # Fire OS 6 never runs third-party accessibility services; there the Home watcher follows the
+  # system log instead, which needs READ_LOGS. Verified from dumpsys: old adb exits 0 regardless.
+  shell pm grant "$PKG" android.permission.READ_LOGS >/dev/null 2>&1 || true
+  if grep -q "android.permission.READ_LOGS: granted=true" <<<"$(shell dumpsys package "$PKG")"; then
+    ok "Home watcher allowed (READ_LOGS): works on every Fire OS version"
+  else
+    warn "READ_LOGS was refused; only the accessibility route is left (Fire OS 7/8)"
+  fi
+
   if shell appops set "$PKG" GET_USAGE_STATS allow >/dev/null 2>&1; then
     ok "Usage access granted (per-app storage sizes)"
   else
@@ -103,15 +112,25 @@ cmd_setup() {
   shell settings put secure enabled_accessibility_services "$updated" >/dev/null
   shell settings put secure accessibility_enabled 1 >/dev/null
   if [[ ":$(shell settings get secure enabled_accessibility_services):" == *":$SERVICE:"* ]]; then
-    ok "Home button linked: Home now returns to REA TV"
+    ok "Accessibility route enabled (used on Fire OS 7/8; Fire OS 6 ignores it)"
   else
-    fail "Fire OS rejected the Home button service. REA TV still works as an app."
+    warn "Fire OS rejected the accessibility route"
   fi
 
   bold "Compiling REA TV ahead-of-time for instant startup…"
   shell cmd package compile -m speed -f "$PKG" >/dev/null 2>&1 && ok "Compiled (speed)" || warn "AOT compile not supported on this build"
 
+  # Restart REA TV so it picks up the new permissions and starts the Home watcher.
+  shell am force-stop "$PKG" >/dev/null 2>&1 || true
   shell am start -n "$PKG/.MainActivity" >/dev/null 2>&1 || true
+  sleep "${REA_SETTLE:-2}"
+  if grep -q "HomeWatchService" <<<"$(shell dumpsys activity services "$PKG")"; then
+    ok "Home watcher running: Home now returns to REA TV"
+  elif [[ ":$(shell settings get secure enabled_accessibility_services):" == *":$SERVICE:"* ]]; then
+    warn "Home watcher not running; relying on the accessibility route"
+  else
+    fail "Nothing can take over the Home button on this build. Open REA TV from Your Apps."
+  fi
   ok "Done. Press Home on your remote to try it."
 }
 
@@ -126,6 +145,8 @@ cmd_unlink() {
     shell settings put secure enabled_accessibility_services "$updated" >/dev/null
   fi
   shell pm revoke "$PKG" android.permission.WRITE_SECURE_SETTINGS >/dev/null 2>&1 || true
+  shell pm revoke "$PKG" android.permission.READ_LOGS >/dev/null 2>&1 || true
+  shell am force-stop "$PKG" >/dev/null 2>&1 || true
   ok "Home button returned to Amazon's home screen"
 }
 

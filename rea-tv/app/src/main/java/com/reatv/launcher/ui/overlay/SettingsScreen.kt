@@ -57,6 +57,7 @@ import com.reatv.launcher.glass.liquidGlass
 import com.reatv.launcher.rea
 import com.reatv.launcher.system.Booster
 import com.reatv.launcher.system.HomeRedirect
+import com.reatv.launcher.system.HomeWatchService
 import com.reatv.launcher.system.StorageScan
 import com.reatv.launcher.system.StorageScanner
 import com.reatv.launcher.system.SystemInfo
@@ -289,9 +290,9 @@ private fun HomeButtonSection(first: FocusRequester, actions: SettingsActions) {
     val context = LocalContext.current
     val s = LocalSettings.current
     val isFire = remember { SystemInfo.isFireTv(context) }
-    val linked by produceState(HomeRedirect.isServiceEnabled(context)) {
+    val linked by produceState(HomeRedirect.isLinked(context)) {
         while (true) {
-            value = HomeRedirect.isServiceEnabled(context)
+            value = HomeRedirect.isLinked(context)
             delay(1500)
         }
     }
@@ -313,7 +314,13 @@ private fun HomeButtonSection(first: FocusRequester, actions: SettingsActions) {
             s.replaceAmazonHome = !s.replaceAmazonHome
             // With the ADB-granted permission, also switch the service itself so Fire OS apps
             // stop seeing an active accessibility service when it isn't wanted.
-            if (s.replaceAmazonHome) HomeRedirect.ensureServiceEnabled(context) else HomeRedirect.disableService(context)
+            if (s.replaceAmazonHome) {
+                HomeRedirect.ensureServiceEnabled(context)
+                HomeWatchService.start(context)
+            } else {
+                HomeRedirect.disableService(context)
+                HomeWatchService.stop(context)
+            }
         })
         if (!linked && HomeRedirect.canWriteSecureSettings(context)) {
             GlassRow("Link now", icon = ReaIcon.Check, onClick = {

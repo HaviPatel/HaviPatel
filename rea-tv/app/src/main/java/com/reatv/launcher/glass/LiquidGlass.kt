@@ -57,7 +57,8 @@ data class GlassStyle(
 ) {
     companion object {
         val Clear = GlassStyle(Color(0x0F000000), Color(0x0FFFFFFF), lens = 0.09f, saturation = 2.0f, rim = 0.70f, glow = 0.12f)
-        val Regular = GlassStyle(Color(0x24000000), Color(0x1FFFFFFF), lens = 0.06f, saturation = 1.7f, rim = 0.55f, glow = 0.14f)
+        // tvOS 26 Liquid Glass is clear with strong refraction and edge light, not milky.
+        val Regular = GlassStyle(Color(0x1A000000), Color(0x1AFFFFFF), lens = 0.08f, saturation = 1.8f, rim = 0.62f, glow = 0.14f)
         val Frosted = GlassStyle(Color(0x33000000), Color(0x3DFFFFFF), lens = 0.04f, saturation = 1.4f, rim = 0.45f, glow = 0.16f)
     }
 
@@ -95,49 +96,70 @@ val LocalReduceTransparency = staticCompositionLocalOf { false }
  * a glow and a rim highlight that both follow [GlassLight], and a top sheen.
  *
  * [emphasis] (0..1, read during draw only) morphs the glass into the bright focused state without
- * recomposing.
+ * recomposing. [restOpacity] < 1 makes "quiet" glass that is barely there until focused, the way
+ * tvOS list rows and menu items only light up under focus.
  */
 fun Modifier.liquidGlass(
     cornerRadius: Dp,
     style: GlassStyle? = null,
     emphasis: (() -> Float)? = null,
-): Modifier = this then LiquidGlassElement(cornerRadius, style, emphasis)
+    restOpacity: Float = 1f,
+): Modifier = this then LiquidGlassElement(cornerRadius, style, emphasis, restOpacity)
+
+/**
+ * Liquid Glass edge for opaque content such as artwork: the rim light and sheen are drawn over the
+ * content, aimed at the shared [GlassLight], so a picture reads as a pane of glass.
+ */
+fun Modifier.glassEdge(cornerRadius: Dp, strength: Float = 1f): Modifier =
+    this then GlassEdgeElement(cornerRadius, strength)
 
 private class LiquidGlassElement(
     val cornerRadius: Dp,
     val style: GlassStyle?,
     val emphasis: (() -> Float)?,
+    val restOpacity: Float,
 ) : ModifierNodeElement<LiquidGlassNode>() {
-    override fun create() = LiquidGlassNode(cornerRadius, style, emphasis)
+    override fun create() = LiquidGlassNode(cornerRadius, style, emphasis, restOpacity)
 
     override fun update(node: LiquidGlassNode) {
         node.cornerRadius = cornerRadius
         node.style = style
         node.emphasis = emphasis
+        node.restOpacity = restOpacity
     }
 
     override fun equals(other: Any?): Boolean =
-        other is LiquidGlassElement && other.cornerRadius == cornerRadius && other.style == style && other.emphasis === emphasis
+        other is LiquidGlassElement && other.cornerRadius == cornerRadius && other.style == style &&
+            other.emphasis === emphasis && other.restOpacity == restOpacity
 
     override fun hashCode(): Int {
         var result = cornerRadius.hashCode()
         result = 31 * result + (style?.hashCode() ?: 0)
         result = 31 * result + (emphasis?.hashCode() ?: 0)
+        result = 31 * result + restOpacity.hashCode()
         return result
     }
 }
 
-private class LiquidGlassNode(
-    var cornerRadius: Dp,
-    var style: GlassStyle?,
-    var emphasis: (() -> Float)?,
-) : Modifier.Node(), DrawModifierNode, GlobalPositionAwareModifierNode, CompositionLocalConsumerModifierNode {
+private class GlassEdgeElement(val cornerRadius: Dp, val strength: Float) : ModifierNodeElement<GlassEdgeNode>() {
+    override fun create() = GlassEdgeNode(cornerRadius, strength)
 
-    private var origin = Offset.Zero
-    private var rootSize = Size.Zero
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-    private val matrix = Matrix()
-    private var filterSaturation = Float.NaN
+    override fun update(node: GlassEdgeNode) {
+        node.cornerRadius = cornerRadius
+        node.strength = strength
+    }
+
+    override fun equals(other: Any?): Boolean =
+        other is GlassEdgeElement && other.cornerRadius == cornerRadius && other.strength == strength
+
+    override fun hashCode(): Int = 31 * cornerRadius.hashCode() + strength.hashCode()
+}
+
+/** Tracks where a node sits in the root so the backdrop and light can be mapped onto it. */
+private abstract class PositionedGlassNode : Modifier.Node(), DrawModifierNode, GlobalPositionAwareModifierNode,
+    CompositionLocalConsumerModifierNode {
+    protected var origin = Offset.Zero
+    protected var rootSize = Size.Zero
 
     override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
         val position = coordinates.positionInRoot()
@@ -149,6 +171,65 @@ private class LiquidGlassNode(
         }
     }
 
+    /** Unit vector from this node's center toward the shared light. */
+    protected fun lightDirection(w: Float, h: Float): Offset {
+        val toLight = currentValueOf(LocalGlassLight).position - origin - Offset(w / 2f, h / 2f)
+        val distance = toLight.getDistance()
+        return if (distance > 1f) toLight / distance else Offset(-0.6f, -0.8f)
+    }
+}
+
+/** Sheen across the top and a rim brightest where the light hits (shared by glass and glass edges). */
+private fun ContentDrawScope.drawGlassLight(
+    w: Float,
+    h: Float,
+    r: Float,
+    dir: Offset,
+    rim: Float,
+    sheen: Float,
+    alpha: Float,
+) {
+    val center = Offset(w / 2f, h / 2f)
+    drawRoundRect(
+        brush = Brush.verticalGradient(
+            0f to Color.White.copy(alpha = sheen),
+            0.45f to Color.Transparent,
+            startY = 0f,
+            endY = h,
+        ),
+        cornerRadius = CornerRadius(r, r),
+        alpha = alpha,
+    )
+    val stroke = max(1f, 1.2.dp.toPx())
+    val half = center.getDistance()
+    drawRoundRect(
+        brush = Brush.linearGradient(
+            0f to Color.White.copy(alpha = rim.coerceAtMost(1f)),
+            0.42f to Color.White.copy(alpha = 0.07f),
+            0.62f to Color.White.copy(alpha = 0.05f),
+            1f to Color.White.copy(alpha = (rim * 0.5f).coerceAtMost(1f)),
+            start = center + dir * half,
+            end = center - dir * half,
+        ),
+        topLeft = Offset(stroke / 2f, stroke / 2f),
+        size = Size(w - stroke, h - stroke),
+        cornerRadius = CornerRadius(max(0f, r - stroke / 2f)),
+        style = Stroke(stroke),
+        alpha = alpha,
+    )
+}
+
+private class LiquidGlassNode(
+    var cornerRadius: Dp,
+    var style: GlassStyle?,
+    var emphasis: (() -> Float)?,
+    var restOpacity: Float,
+) : PositionedGlassNode() {
+
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val matrix = Matrix()
+    private var filterSaturation = Float.NaN
+
     override fun ContentDrawScope.draw() {
         val w = size.width
         val h = size.height
@@ -159,6 +240,11 @@ private class LiquidGlassNode(
         val s = style ?: currentValueOf(LocalGlassStyle)
         val solid = currentValueOf(LocalReduceTransparency)
         val e = (emphasis?.invoke() ?: 0f).coerceIn(0f, 1f)
+        val a = (restOpacity + (1f - restOpacity) * e).coerceIn(0f, 1f)
+        if (a <= 0.005f) {
+            drawContent()
+            return
+        }
         val r = min(cornerRadius.toPx(), min(w, h) / 2f)
         val corner = CornerRadius(r, r)
 
@@ -173,6 +259,7 @@ private class LiquidGlassNode(
             val shader = BitmapShader(blurred, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
             shader.setLocalMatrix(matrix)
             paint.shader = shader
+            paint.alpha = (a * 255f).toInt()
             if (filterSaturation != s.saturation) {
                 paint.colorFilter = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(s.saturation) })
                 filterSaturation = s.saturation
@@ -180,19 +267,16 @@ private class LiquidGlassNode(
             drawContext.canvas.nativeCanvas.drawRoundRect(0f, 0f, w, h, r, r, paint)
             paint.shader = null
         } else {
-            drawRoundRect(color = s.solid, cornerRadius = corner)
+            drawRoundRect(color = s.solid, cornerRadius = corner, alpha = a)
         }
 
         // 2. Shade + tint, morphing to bright white when focused.
-        if (e < 1f) drawRoundRect(color = s.shade.copy(alpha = s.shade.alpha * (1f - e)), cornerRadius = corner)
-        drawRoundRect(color = lerp(s.tint, s.focusTint, e), cornerRadius = corner)
+        if (e < 1f) drawRoundRect(color = s.shade.copy(alpha = s.shade.alpha * (1f - e)), cornerRadius = corner, alpha = a)
+        drawRoundRect(color = lerp(s.tint, s.focusTint, e), cornerRadius = corner, alpha = a)
 
-        // 3. Light: glow on the side facing the light, rim brightest where the light hits.
-        val center = Offset(w / 2f, h / 2f)
-        val toLight = currentValueOf(LocalGlassLight).position - origin - center
-        val distance = toLight.getDistance()
-        val dir = if (distance > 1f) toLight / distance else Offset(-0.6f, -0.8f)
-        val glowCenter = Offset(center.x + dir.x * w * 0.45f, center.y + dir.y * h * 0.45f)
+        // 3. Light: glow on the side facing the light, then sheen and rim.
+        val dir = lightDirection(w, h)
+        val glowCenter = Offset(w / 2f + dir.x * w * 0.45f, h / 2f + dir.y * h * 0.45f)
         drawRoundRect(
             brush = Brush.radialGradient(
                 colors = listOf(Color.White.copy(alpha = s.glow * (1f - 0.6f * e)), Color.Transparent),
@@ -200,34 +284,21 @@ private class LiquidGlassNode(
                 radius = max(w, h) * 0.8f,
             ),
             cornerRadius = corner,
+            alpha = a,
         )
-        drawRoundRect(
-            brush = Brush.verticalGradient(
-                0f to Color.White.copy(alpha = 0.10f * (1f - e)),
-                0.45f to Color.Transparent,
-                startY = 0f,
-                endY = h,
-            ),
-            cornerRadius = corner,
-        )
-
-        val stroke = max(1f, 1.2.dp.toPx())
-        val half = center.getDistance()
-        drawRoundRect(
-            brush = Brush.linearGradient(
-                0f to Color.White.copy(alpha = s.rim + 0.25f * e),
-                0.42f to Color.White.copy(alpha = 0.07f),
-                0.62f to Color.White.copy(alpha = 0.05f),
-                1f to Color.White.copy(alpha = s.rim * 0.5f),
-                start = center + dir * half,
-                end = center - dir * half,
-            ),
-            topLeft = Offset(stroke / 2f, stroke / 2f),
-            size = Size(w - stroke, h - stroke),
-            cornerRadius = CornerRadius(max(0f, r - stroke / 2f)),
-            style = Stroke(stroke),
-        )
+        drawGlassLight(w, h, r, dir, rim = s.rim + 0.25f * e, sheen = 0.10f * (1f - e), alpha = a)
 
         drawContent()
+    }
+}
+
+private class GlassEdgeNode(var cornerRadius: Dp, var strength: Float) : PositionedGlassNode() {
+    override fun ContentDrawScope.draw() {
+        drawContent()
+        val w = size.width
+        val h = size.height
+        if (w <= 0f || h <= 0f) return
+        val r = min(cornerRadius.toPx(), min(w, h) / 2f)
+        drawGlassLight(w, h, r, lightDirection(w, h), rim = 0.55f * strength, sheen = 0.12f * strength, alpha = 1f)
     }
 }

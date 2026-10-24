@@ -6,7 +6,7 @@ Amazon bloat and tune RAM and storage.
 
 - **Small APK, no internet permission.** Compose ui/foundation/animation only, no Material, shrunk
   by R8. No analytics, accounts, or icon packs, and no image assets: wallpapers and icons are drawn
-  in code.
+  in code. Text is set in Inter, the closest open typeface to SF Pro (Latin subset, four weights).
 - **Built for 1 GB sticks.** Artwork is decoded at tile size, cached by byte budget, and handed
   back to the system as soon as you open an app. Only rows near the focus load artwork.
 - **Smooth on weak GPUs.** Focus, scrolling, and glass all run in the draw/graphics-layer phase,
@@ -16,20 +16,21 @@ Amazon bloat and tune RAM and storage.
 
 | | |
 |---|---|
-| **Home** | tvOS-style grid. The top row owns the **Top Shelf**: the app's name and artwork appear on a glass card, and the wallpaper picks up the app's colors. Deeper rows scroll up and pin near the top. |
+| **Home** | tvOS-style grid with nothing else on screen: like tvOS, there's no clock or button bar (the time is in Control Center). The top row owns the full-width **Top Shelf**: the focused app's artwork, crisp on the right and blurred across the whole pane behind its name, under a Liquid Glass edge, while the wallpaper picks up the app's colors. Deeper rows scroll up and pin near the top. |
 | **Focus** | Tiles lift toward you with a deep shadow, tilt from the direction you came, settle with a spring, and catch a specular glint. |
 | **Liquid Glass** | Every panel refracts what's behind it (magnified, saturated, blurred backdrop). One shared light glides toward whatever has focus, so rim highlights and glows sweep across all the glass on screen. |
-| **Control Center** (☰ Menu button) | Network, Bluetooth, **Free memory**, Storage, Screensaver, Fire TV settings, REA TV settings, Amazon Home, plus live RAM and storage meters. |
+| **Control Center** (☰ Menu button) | A glass panel from the right with the time in large type and round glass controls: Network, Bluetooth, **Memory** (free it up), Storage, Screensaver, Fire TV settings, REA TV settings, Amazon Home, plus live RAM and storage meters. |
 | **Hold OK on an app** | Open, Move (jiggle mode, then use the arrows), Move to / remove from Top Shelf, Hide, App info & cache, Uninstall. |
-| **Settings** | Wallpapers (Aurora, Ocean, Sunset, Forest, Graphite, Midnight, or Top Shelf colors), glass level (Clear, Regular, Frosted), icon size, labels, 24-hour clock, Reduce motion / transparency, hidden apps, per-app storage, memory booster, device info. The category list has a liquid lens that stretches as it slides. |
+| **Settings** (Control Center › REA TV) | Wallpapers (Aurora, Ocean, Sunset, Forest, Graphite, Midnight, or Top Shelf colors), glass level (Clear, Regular, Frosted), icon size, labels, 24-hour clock, Reduce motion / transparency, hidden apps, per-app storage, memory booster, device info. Rows are plain text until focus turns them into bright glass, as in tvOS, and the category list has a liquid lens that stretches as it slides. |
 | **Home button** | On Fire TV, Home brings you back to REA TV (see below). On Android TV / Google TV, pick REA TV as the Home app. |
 
 ## Compatibility
 
 | Device | Status |
 |---|---|
-| Fire TV Stick 4K / 4K Max (both gens), Lite, 3rd gen, Cube: Fire OS 6, 7, 8 | Supported target |
-| Fire TV Stick 2nd gen: Fire OS 5 | Supported (minSdk 22). Overlays use the wallpaper as their glass backdrop, since PixelCopy needs Android 8. |
+| Fire TV Stick 4K / 4K Max (both gens), Lite, 3rd gen, Cube: Fire OS 7, 8 | Supported target |
+| Fire TV Stick 4K 1st gen, Cube 1st gen: Fire OS 6 (Android 7.1) | Supported target. Home uses the log watcher (below). Overlays use the wallpaper as their glass backdrop and Settings › Storage shows totals only, since both need Android 8. |
+| Fire TV Stick 2nd gen: Fire OS 5 | Installs (minSdk 22), same Android 8 limits as Fire OS 6. |
 | Android TV / Google TV boxes | Supported (a real Home app there) |
 | Fire TV devices on **Vega OS** (e.g. Fire TV Stick 4K Select, 2025) | ❌ No Android apps or sideloading |
 
@@ -70,35 +71,45 @@ Then press **Home** on the remote.
 ## How the Home button works on Fire TV
 
 Fire OS has no "default home app" setting and never passes the Home key to third-party apps.
-Amazon's launcher is also a protected package that can't be disabled. So REA TV ships a tiny
-accessibility service, **REA TV Home button**, that:
+Amazon's launcher is also a protected package that can't be disabled, and `set-home-activity`
+reports success but changes nothing. REA TV therefore notices Amazon's home coming up and brings
+itself back, two ways (`setup` turns on both; whichever works on your build does the job):
 
-- subscribes to *window-state changes only* and **cannot read screen content**
-  (`canRetrieveWindowContent=false`)
-- reacts only when Amazon's home screen (`com.amazon.tv.launcher/.ui.HomeActivity_vNext` or any
-  activity that answers the HOME intent) comes to the front, so Amazon Settings screens in the
-  same package are left alone
-- reopens REA TV through an exact alarm. Android holds activity starts from background apps for
-  about 5 seconds after Home is pressed, and alarm-delivered starts skip that wait.
+- **Log watcher (Fire OS 6 and up).** Fire OS 6.7.1.1 never binds third-party accessibility
+  services (tested on a Fire TV Stick 4K by the
+  [tv-vibehack](https://github.com/ljis120301/tv-vibehack/blob/fire-tv-support/FIRETV.md) fork of
+  cleanyourtv). So a small foreground service follows two system-log tags with `READ_LOGS`
+  (granted over ADB): a HOME start aimed at Amazon's launcher (the Home button) and Amazon's home
+  screen resuming (Back out of an app). It reads nothing else and has no network access.
+- **Accessibility service (Fire OS 7/8).** It subscribes to *window-state changes only* and
+  **cannot read screen content** (`canRetrieveWindowContent=false`).
 
-You may see Amazon's home for a split second. If you grant the optional `WRITE_SECURE_SETTINGS`
-over ADB (`setup` does this), REA TV re-links itself if Fire OS drops the service after an update.
+Both react only to Amazon's home *screen* (`com.amazon.tv.launcher/.ui.HomeActivity_vNext` or any
+activity that answers HOME), so other Amazon screens in the same package are left alone. Both reopen
+REA TV through an exact alarm: Android holds activity starts from background apps for about 5 seconds
+after Home is pressed, and alarm-delivered starts skip that wait. You may see Amazon's home for a
+split second. If you grant the optional `WRITE_SECURE_SETTINGS` over ADB (`setup` does this), REA TV
+re-links the accessibility service if Fire OS drops it after an update.
 
 **Known limits:**
 
-- Some Fire OS builds (users report 8.1.5.3+) revoke third-party accessibility services. REA TV
-  still works as a normal app; open it from *Your Apps*.
-- With any accessibility service on, a few apps (e.g. Prime Video) keep their playback controls
+- Fire OS 6 shows Settings inside Amazon's home, so after opening Settings from REA TV, Amazon's
+  home stays until you press Home.
+- Some Fire OS 8 builds (users report 8.1.5.3+) revoke third-party accessibility services; the log
+  watcher still works there if `READ_LOGS` was granted.
+- With an accessibility service on, a few apps (e.g. Prime Video) keep their playback controls
   visible longer.
+- With Fire OS parental controls set to "PIN protect app launches", any launcher started over
+  Amazon's home triggers the PIN prompt each time.
 - `scripts/rea.sh unlink` hands Home back to Amazon at any time.
 
 ## Debloat and optimize
 
 ```bash
 scripts/rea.sh debloat --tier 1            # preview only: shows what would be turned off
-scripts/rea.sh debloat --tier 1 --apply    # ads, telemetry, promos (safe)
-scripts/rea.sh debloat --tier 2 --apply    # + Amazon Photos, Music, Freevee, Kids, Prime Video…
-scripts/rea.sh debloat --tier 3 --apply    # + Alexa voice, system updates, Appstore (advanced)
+scripts/rea.sh debloat --tier 1 --apply    # telemetry, ads, sponsored rows, promos (safe)
+scripts/rea.sh debloat --tier 2 --apply    # + Live tab, Kids, Music, Photos, Silk, Alexa extras
+scripts/rea.sh debloat --tier 3 --apply    # + Alexa voice search, Prime Video, casting, Appstore
 scripts/rea.sh restore                     # undo everything
 scripts/rea.sh optimize                    # 0.5x system animations, AOT compile, dexopt, cache trim
 scripts/rea.sh optimize --cached 8         # also cap cached background apps (Fire OS 8)
@@ -107,14 +118,16 @@ scripts/rea.sh status                      # device, RAM, storage, Home button, 
 ```
 
 The list lives in [`scripts/debloat-packages.txt`](scripts/debloat-packages.txt) with a description
-for every package.
+for every package. It is built from the list cleanyourtv tested on the Fire TV Stick 4K 1st gen
+(Fire OS 6.7.1.1): tiers 1 and 2 ran on two sticks with nothing to re-enable; tier 3 survived
+reboots on one.
 
 - **Fully reversible.** Packages are only disabled with `pm disable-user --user 0`. Missing ones
   are skipped, and ones Fire OS protects are reported and left alone.
 - **Hard-coded refusals.** The scripts refuse to touch Amazon's launcher, setup, settings, input,
   and core services, whatever the list says.
-- **Tier 3 trade-offs.** It stops security updates, so only use it if you understand that. A
-  factory reset re-enables everything.
+- **Tier 3 trade-offs.** Voice search, Prime Video, casting and Appstore updates stop. Fire OS
+  turns voice search back on at every boot. A factory reset re-enables everything.
 
 Inside the app, Control Center › **Free memory** and Settings › Performance stop cached background
 apps. Settings › Storage lists apps by size so you can clear caches.
@@ -152,7 +165,8 @@ and `REA_KEY_PASSWORD`.
   160 × 90 px, and sampled by each glass surface through a `BitmapShader`. The shader's matrix
   maps the panel to its spot on screen and adds a lens magnification, under a saturation boost.
   Overlays freeze the screen with `PixelCopy` straight into a 256 px bitmap (scaled on the GPU),
-  blurred the same way. The rim light, glow, and sheen are gradients aimed at the shared light.
+  blurred the same way (Android 8+; older versions use the wallpaper). The rim light, glow, and
+  sheen are gradients aimed at the shared light; artwork cards get the same edge light on top.
   See `glass/LiquidGlass.kt`.
 - **Memory.** Artwork is cached in an `LruCache` sized from the app's memory class (1/7, or 1/12
   on 1 GB devices) and trimmed on `onTrimMemory`. The top shelf uses a separate cache holding at
@@ -162,13 +176,15 @@ and `REA_KEY_PASSWORD`.
 app/src/main/java/com/reatv/launcher/
   data/     apps, ordering, artwork cache, settings
   glass/    Liquid Glass modifier, backdrop, blur, window snapshot
-  system/   Home-button service, memory booster, storage scan, system intents
+  system/   Home watchers (log + accessibility), memory booster, storage scan, system intents
   ui/       home grid, tiles, Top Shelf, Control Center, app menu, settings
 scripts/    rea.sh / rea.ps1 + debloat list
+licenses/   Inter (SIL Open Font License 1.1)
 ```
 
 ---
 
 REA TV is an independent project inspired by the tvOS design language. It isn't affiliated with,
-endorsed by, or sponsored by Apple or Amazon, and it contains no Apple or Amazon assets. Apple TV,
+endorsed by, or sponsored by Apple or Amazon, and it contains no Apple or Amazon assets: no SF Pro
+(licensed for Apple platforms only), icons, wallpapers or screensavers. Apple TV,
 tvOS and Liquid Glass are trademarks of Apple Inc. Fire TV is a trademark of Amazon.com, Inc.
