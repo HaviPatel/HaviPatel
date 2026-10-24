@@ -81,8 +81,9 @@ object Aurora {
             )
             canvas.drawRect(0f, 0f, w, h, paint)
         }
-        // Legibility: darken toward the bottom (app rows) and the left (Top Shelf text).
-        paint.shader = LinearGradient(0f, h * 0.35f, 0f, h, 0x00000000, 0x99000000.toInt(), Shader.TileMode.CLAMP)
+        // Like tvOS, the rows sit on black: fade to pure black under the Top Shelf, and darken the
+        // left for the shelf's title.
+        paint.shader = LinearGradient(0f, h * 0.30f, 0f, h * 0.78f, 0x00000000, 0xFF000000.toInt(), Shader.TileMode.CLAMP)
         canvas.drawRect(0f, 0f, w, h, paint)
         paint.shader = LinearGradient(0f, 0f, w * 0.65f, 0f, 0x66000000, 0x00000000, Shader.TileMode.CLAMP)
         canvas.drawRect(0f, 0f, w, h, paint)

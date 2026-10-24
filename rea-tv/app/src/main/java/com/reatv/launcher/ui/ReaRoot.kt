@@ -426,7 +426,7 @@ private fun WallpaperLayer(source: BackdropSource) {
                 filterQuality = FilterQuality.Low,
             )
         } else {
-            Box(Modifier.fillMaxSize().background(Color(0xFF070B1A)))
+            Box(Modifier.fillMaxSize().background(Color.Black))
         }
     }
 }

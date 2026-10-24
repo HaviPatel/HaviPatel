@@ -5,8 +5,9 @@ a Control Center, focus parallax, and nothing extra. It also comes with ADB scri
 Amazon bloat and tune RAM and storage.
 
 - **Small APK, no internet permission.** Compose ui/foundation/animation only, no Material, shrunk
-  by R8. No analytics, accounts, or icon packs, and no image assets: wallpapers and icons are drawn
-  in code. Text is set in Inter, the closest open typeface to SF Pro (Latin subset, four weights).
+  by R8. No analytics, accounts, or icon packs. Wallpapers are drawn in code, and the icons are
+  Lucide outlines compiled to vector paths. Text is set in Inter, the closest open typeface to
+  SF Pro (Latin subset, four weights).
 - **Built for 1 GB sticks.** Artwork is decoded at tile size, cached by byte budget, and handed
   back to the system as soon as you open an app. Only rows near the focus load artwork.
 - **Smooth on weak GPUs.** Focus, scrolling, and glass all run in the draw/graphics-layer phase,
@@ -16,7 +17,7 @@ Amazon bloat and tune RAM and storage.
 
 | | |
 |---|---|
-| **Home** | tvOS-style grid with nothing else on screen: like tvOS, there's no clock or button bar (the time is in Control Center). The top row owns the full-width **Top Shelf**: the focused app's artwork, crisp on the right and blurred across the whole pane behind its name, under a Liquid Glass edge, while the wallpaper picks up the app's colors. Deeper rows scroll up and pin near the top. |
+| **Home** | tvOS-style grid with nothing else on screen: like tvOS, there's no clock or button bar (the time is in Control Center). Every tile is the app's own banner, so the logos are the real ones. The top row owns the edge-to-edge **Top Shelf**: the focused app's banner blurred across the whole shelf (or a wash of its colors when the banner is mostly white), the artwork crisp on the right under a Liquid Glass edge, and its name on the left, fading into the black behind the rows. Deeper rows scroll up and pin near the top. |
 | **Focus** | Tiles lift toward you with a deep shadow, tilt from the direction you came, settle with a spring, and catch a specular glint. |
 | **Liquid Glass** | Every panel refracts what's behind it (magnified, saturated, blurred backdrop). One shared light glides toward whatever has focus, so rim highlights and glows sweep across all the glass on screen. |
 | **Control Center** (☰ Menu button) | A glass panel from the right with the time in large type and round glass controls: Network, Bluetooth, **Memory** (free it up), Storage, Screensaver, Fire TV settings, REA TV settings, Amazon Home, plus live RAM and storage meters. |
@@ -178,8 +179,8 @@ app/src/main/java/com/reatv/launcher/
   glass/    Liquid Glass modifier, backdrop, blur, window snapshot
   system/   Home watchers (log + accessibility), memory booster, storage scan, system intents
   ui/       home grid, tiles, Top Shelf, Control Center, app menu, settings
-scripts/    rea.sh / rea.ps1 + debloat list
-licenses/   Inter (SIL Open Font License 1.1)
+scripts/    rea.sh / rea.ps1, debloat list, lucide_to_kotlin.py (regenerates ui/LucideIcons.kt)
+licenses/   Inter (SIL Open Font License 1.1), Lucide (ISC)
 ```
 
 ---
