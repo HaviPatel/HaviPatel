@@ -2,6 +2,7 @@ package com.reatv.launcher
 
 import android.app.Application
 import android.content.BroadcastReceiver
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -9,8 +10,10 @@ import android.os.Build
 import com.reatv.launcher.data.AppRepository
 import com.reatv.launcher.data.ArtLoader
 import com.reatv.launcher.data.LauncherSettings
+import com.reatv.launcher.data.shelf.ShelfContent
 import com.reatv.launcher.system.HomeRedirect
 import com.reatv.launcher.system.HomeWatchService
+import com.reatv.launcher.system.RecommendationListener
 import com.reatv.launcher.system.SystemInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +27,7 @@ class ReaApp : Application() {
     val settings by lazy { LauncherSettings(this) }
     val apps by lazy { AppRepository(this) }
     val art by lazy { ArtLoader(this, lowRam) }
+    val shelf by lazy { ShelfContent(this, lowRam, settings) }
 
     override fun onCreate() {
         super.onCreate()
@@ -33,6 +37,8 @@ class ReaApp : Application() {
             HomeRedirect.ensureServiceEnabled(this) // Fire OS 7/8
             HomeWatchService.start(this) // Fire OS 6 (needs READ_LOGS from scripts/rea.sh setup)
         }
+        // Top Shelf series and movies from the apps themselves (needs WRITE_SECURE_SETTINGS from setup).
+        if (settings.shelfRecommendations) RecommendationListener.ensureEnabled(this)
     }
 
     private fun registerPackageReceiver() {
@@ -59,12 +65,14 @@ class ReaApp : Application() {
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         art.onTrimMemory(level)
+        shelf.onTrimMemory(level)
     }
 
     @Deprecated("Deprecated in Java")
     override fun onLowMemory() {
         super.onLowMemory()
         art.clear()
+        shelf.onTrimMemory(ComponentCallbacks2.TRIM_MEMORY_COMPLETE)
     }
 }
 

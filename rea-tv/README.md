@@ -4,8 +4,9 @@ An Apple TV–style home screen for Amazon Fire TV Sticks. It has a Liquid Glass
 a Control Center, focus parallax, and nothing extra. It also comes with ADB scripts that remove
 Amazon bloat and tune RAM and storage.
 
-- **Small APK, no internet permission.** Compose ui/foundation/animation only, no Material, shrunk
-  by R8. No analytics, accounts, or icon packs. Wallpapers are drawn in code, and the icons are
+- **Small APK, offline by default.** Compose ui/foundation/animation only, no Material, shrunk
+  by R8. No analytics, accounts, or icon packs. The only network use is Top Shelf artwork from
+  TMDB, and only once you add a TMDB key. Wallpapers are drawn in code, and the icons are
   Lucide outlines compiled to vector paths. Text is set in Inter, the closest open typeface to
   SF Pro (Latin subset, four weights).
 - **Built for 1 GB sticks.** Artwork is decoded at tile size, cached by byte budget, and handed
@@ -18,6 +19,7 @@ Amazon bloat and tune RAM and storage.
 | | |
 |---|---|
 | **Home** | tvOS-style grid with nothing else on screen: like tvOS, there's no clock or button bar (the time is in Control Center). Every tile is the app's own banner, so the logos are the real ones. The top row owns the edge-to-edge **Top Shelf**: the focused app's banner blurred across the whole shelf (or a wash of its colors when the banner is mostly white), fading into the black behind the rows, with the app's logo lifted off its banner as the title, the way tvOS shows a show's title treatment. Dark wordmarks turn light for the dark shelf, as brands do on dark backgrounds. Banners that are a photo, or whose logo runs into the edge, show the name and the banner as a card instead. Deeper rows scroll up and pin near the top. |
+| **Series & movies** | Hover an app in the top row and its Top Shelf becomes a carousel of series and movies, like tvOS: full-screen key art, the title's logo, a line of details (Series · Drama · 2019 · TV-14), a two-line description and page dots, moving on every 8 seconds. Press **Up** to step into it, **Left/Right** to browse, **OK** to open, **Down** or **Back** to return. The titles come from the app itself (what it recommends: keep watching, new episodes) or, with a TMDB key, from what's popular on that service in your country. See [Top Shelf series & movies](#top-shelf-series--movies). |
 | **Focus** | Tiles lift toward you with a deep shadow, tilt from the direction you came, settle with a spring, and catch a specular glint. Moving focus ticks and selecting clicks, using Fire TV's own navigation sounds, so its Navigation Sounds setting turns them off. |
 | **Liquid Glass** | Every panel refracts what's behind it (magnified, saturated, blurred backdrop). One shared light glides toward whatever has focus, so rim highlights and glows sweep across all the glass on screen. |
 | **Control Center** (☰ Menu button) | A glass panel from the right with the time in large type and round glass controls: Network, Bluetooth, **Memory** (free it up), Storage, Screensaver, Fire TV settings, REA TV settings, Amazon Home, plus live RAM and storage meters. |
@@ -52,6 +54,7 @@ Amazon bloat and tune RAM and storage.
    scripts/rea.sh connect 192.168.1.50   # accept the prompt on the TV
    scripts/rea.sh install REA-TV-v1.0.0.apk
    scripts/rea.sh setup                  # links the Home button, grants permissions, AOT-compiles
+   scripts/rea.sh tmdb YOUR_TMDB_KEY     # optional: series & movies for Netflix, Prime Video…
    ```
 
    On Windows use `scripts\rea.ps1` with the same commands (or Git Bash / WSL with `rea.sh`).
@@ -66,8 +69,31 @@ Then press **Home** on the remote.
 | OK | Open |
 | Hold OK | App options (Move, Top Shelf, Hide, Info, Uninstall) |
 | ☰ Menu | Control Center |
-| Back | Close the overlay, or jump back to the top row |
+| Up (from the top row) | Into the Top Shelf's series and movies; Left/Right browse, OK opens |
+| Back | Close the overlay, leave the Top Shelf, or jump back to the top row |
 | Home | Back to REA TV. Pressed while already home, it returns to the first app |
+
+## Top Shelf series & movies
+
+tvOS fills the Top Shelf with each app's own content. Fire TV apps don't hand that to other
+launchers, so REA TV uses two sources, best first:
+
+1. **What the app recommends.** Fire TV and Android TV apps publish recommendations as
+   notifications (Android's `ContentRecommendation`, plus Amazon's `com.amazon.extra.*` details):
+   title, artwork, description, and an action that opens that exact title. REA TV reads them with
+   a notification listener that keeps only the *recommendation* category and ignores every other
+   notification as it arrives. Fire OS has no screen to allow this for a launcher, so REA TV
+   switches it on itself with the permission `scripts/rea.sh setup` grants (Settings › Appearance ›
+   From your apps turns it off). Which apps publish recommendations is up to them.
+2. **What's popular on the service**, from [TMDB](https://www.themoviedb.org), for Netflix, Prime
+   Video, Disney+, Hulu, Max, Apple TV, Paramount+, Peacock, Crunchyroll, Tubi, Pluto TV and MUBI,
+   in your Fire TV's country, with TMDB's backdrops, title logos, genres and age ratings. This needs
+   a free API key (themoviedb.org › Settings › API): send it with `scripts/rea.sh tmdb KEY`
+   (`tmdb off` removes it), or build with the `TMDB_API_KEY` secret so it's baked in. OK opens the
+   app; TMDB doesn't know the app's own title IDs. Lists are cached for 6 hours and artwork for two
+   weeks, in a capped cache Android may clear.
+
+Apps with neither show their brand: the logo lifted off the app's banner, over its colors.
 
 ## How the Home button works on Fire TV
 
@@ -155,7 +181,8 @@ base64 -w0 rea-release.jks   # → secret REA_KEYSTORE_BASE64
 ```
 
 Then add the repository secrets `REA_KEYSTORE_BASE64`, `REA_KEYSTORE_PASSWORD`, `REA_KEY_ALIAS`,
-and `REA_KEY_PASSWORD`.
+and `REA_KEY_PASSWORD`. Add `TMDB_API_KEY` too if you want the Top Shelf's series and movies in
+every build without running `scripts/rea.sh tmdb` (locally: `./gradlew assembleRelease -PtmdbApiKey=KEY`).
 
 ## Under the hood
 
@@ -173,6 +200,11 @@ and `REA_KEY_PASSWORD`.
   on sticks with 1.5 GB or less) and trimmed on `onTrimMemory`. The Top Shelf keeps its own cache
   of at most 5 shelves (2 on those sticks), and lifts each logo once, on a background thread.
   Overlay snapshots are dropped when another app opens.
+- **Top Shelf content.** `data/shelf/`: `RecommendationParser` and `TmdbJson` are pure and
+  unit-tested; `Http` is HttpURLConnection plus a disk cache (no client library); backdrops are
+  decoded at 1280 px (960 on 1.5 GB sticks) into a byte-capped cache that empties as soon as
+  another app is in front. The carousel only moves on while REA TV is visible, and loads the next
+  slide's art before showing it.
 - **Logo keying.** `data/LogoKey.kt` models the banner's fill from its border (a Coons patch, so
   gradients key cleanly), takes each pixel's alpha from its distance to that fill against the
   strongest logo color nearby, and un-mixes the fill from edge pixels so no halo is left. The shelf
@@ -181,7 +213,8 @@ and `REA_KEY_PASSWORD`.
 
 ```
 app/src/main/java/com/reatv/launcher/
-  data/     apps, ordering, artwork cache, settings
+  data/     apps, ordering, artwork cache, logo keying, settings
+  data/shelf/  Top Shelf series & movies: app recommendations, TMDB, HTTP + image cache
   glass/    Liquid Glass modifier, backdrop, blur, window snapshot
   system/   Home watchers (log + accessibility), memory booster, storage scan, system intents
   ui/       home grid, tiles, Top Shelf, Control Center, app menu, settings
@@ -195,3 +228,5 @@ REA TV is an independent project inspired by the tvOS design language. It isn't 
 endorsed by, or sponsored by Apple or Amazon, and it contains no Apple or Amazon assets: no SF Pro
 (licensed for Apple platforms only), icons, wallpapers or screensavers. Apple TV,
 tvOS and Liquid Glass are trademarks of Apple Inc. Fire TV is a trademark of Amazon.com, Inc.
+Movie and series data and images come from TMDB. This product uses the TMDB API but is not
+endorsed or certified by TMDB.

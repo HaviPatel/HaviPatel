@@ -11,6 +11,7 @@
 #   scripts/rea.sh clean                     trim all app caches and stop background apps
 #   scripts/rea.sh status                    device, memory, storage, Home button state
 #   scripts/rea.sh unlink                    stop REA TV from taking over the Home button
+#   scripts/rea.sh tmdb KEY                  Top Shelf series & movies from TMDB ("tmdb off" removes it)
 set -euo pipefail
 
 PKG="com.reatv.launcher"
@@ -131,7 +132,33 @@ cmd_setup() {
   else
     fail "Nothing can take over the Home button on this build. Open REA TV from Your Apps."
   fi
+  # REA TV turns on its Top Shelf recommendations listener itself once it may write secure settings.
+  if [[ "$(shell settings get secure enabled_notification_listeners)" == *"$PKG/"* ]]; then
+    ok "Top Shelf shows the series and movies your apps recommend"
+  else
+    warn "Top Shelf can't read app recommendations on this build"
+  fi
+  [[ -n "${REA_TMDB_KEY:-}" ]] && cmd_tmdb "$REA_TMDB_KEY"
   ok "Done. Press Home on your remote to try it."
+}
+
+# A TMDB key (free at themoviedb.org → Settings → API) lets the Top Shelf show what's popular on
+# Netflix, Prime Video, Disney+ and others. Sent over ADB: typing one with a remote is no fun.
+cmd_tmdb() {
+  need_device
+  installed "$PKG" || die "REA TV isn't installed. Run: $0 install"
+  local key="${1:-}"
+  [[ -n "$key" ]] || die "Usage: $0 tmdb YOUR_KEY   (free at https://www.themoviedb.org/settings/api; \"off\" removes it)"
+  [[ "$key" == "off" ]] && key=""
+  # Only key characters: the value passes through the device's shell.
+  key="$(printf '%s' "$key" | tr -cd 'A-Za-z0-9._-')"
+  local out
+  out="$(shell am broadcast -n "$PKG/.system.ConfigReceiver" -a "$PKG.SET_TMDB_KEY" --es key "${key:-none}")"
+  if grep -q "TMDB key" <<<"$out"; then
+    ok "$(grep -o 'TMDB key [a-z]*' <<<"$out")"
+  else
+    fail "REA TV didn't take the key: $out"
+  fi
 }
 
 cmd_unlink() {
@@ -282,7 +309,7 @@ cmd_status() {
   printf '  %s package(s) from the list are disabled\n' "$off"
 }
 
-usage() { sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print } /^set /{ exit }' "$0"; }
 
 main() {
   local cmd="${1:-help}"
@@ -297,6 +324,7 @@ main() {
     optimize) cmd_optimize "$@" ;;
     clean) need_device; cmd_clean ;;
     status) cmd_status ;;
+    tmdb) cmd_tmdb "$@" ;;
     help | -h | --help) usage ;;
     *) usage; exit 1 ;;
   esac

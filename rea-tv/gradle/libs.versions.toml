@@ -6,6 +6,7 @@ activityCompose = "1.10.1"
 profileinstaller = "1.4.1"
 coroutines = "1.10.2"
 junit = "4.13.2"
+json = "20240303"
 
 [libraries]
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
@@ -16,6 +17,8 @@ androidx-activity-compose = { group = "androidx.activity", name = "activity-comp
 androidx-profileinstaller = { group = "androidx.profileinstaller", name = "profileinstaller", version.ref = "profileinstaller" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+# Android's org.json is a stub in local unit tests; the real one parses TMDB samples there.
+json = { group = "org.json", name = "json", version.ref = "json" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

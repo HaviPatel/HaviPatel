@@ -57,6 +57,7 @@ import com.reatv.launcher.glass.liquidGlass
 import com.reatv.launcher.rea
 import com.reatv.launcher.system.Booster
 import com.reatv.launcher.system.HomeRedirect
+import com.reatv.launcher.system.RecommendationListener
 import com.reatv.launcher.system.HomeWatchService
 import com.reatv.launcher.system.StorageScan
 import com.reatv.launcher.system.StorageScanner
@@ -267,6 +268,64 @@ private fun AppearanceSection(first: FocusRequester) {
     })
     GlassRow("App names", value = s.labels.title, onClick = { s.labels = next(s.labels, LabelMode.entries) })
     GlassRow("24-hour clock", value = onOff(s.clock24h), onClick = { s.clock24h = !s.clock24h })
+    TopShelfRows()
+}
+
+/** Where the Top Shelf's series and movies come from. */
+@Composable
+private fun TopShelfRows() {
+    val context = LocalContext.current
+    val s = LocalSettings.current
+    val shelf = context.rea.shelf
+    val listening by produceState(RecommendationListener.isEnabled(context), s.shelfRecommendations) {
+        while (true) {
+            value = RecommendationListener.isEnabled(context)
+            delay(1500)
+        }
+    }
+    Spacer(Modifier.height(6.dp))
+    SectionLabel("Top Shelf")
+    GlassRow(
+        "From your apps",
+        icon = ReaIcon.Play,
+        subtitle = "What your apps recommend: keep watching, new episodes, picks",
+        value = when {
+            !s.shelfRecommendations -> "Off"
+            listening -> "On"
+            else -> "Needs setup"
+        },
+        tint = if (s.shelfRecommendations && !listening) Rea.Warning else Rea.TextPrimary,
+        onClick = {
+            s.shelfRecommendations = !s.shelfRecommendations
+            if (s.shelfRecommendations) RecommendationListener.ensureEnabled(context) else RecommendationListener.disable(context)
+        },
+    )
+    val hasKey = shelf.tmdbKey.isNotBlank()
+    GlassRow(
+        "Popular on each service",
+        icon = ReaIcon.Star,
+        subtitle = "Series and movies on Netflix, Prime Video, Disney+ and more, from TMDB",
+        value = when {
+            !hasKey -> "Add a key"
+            s.shelfCatalog -> "On"
+            else -> "Off"
+        },
+        onClick = {
+            if (hasKey) {
+                s.shelfCatalog = !s.shelfCatalog
+                shelf.resetCatalogs()
+            }
+        },
+    )
+    InfoText(
+        if (hasKey) {
+            "Uses your country's catalog. Movie and series data from TMDB; this product uses the TMDB API " +
+                "but is not endorsed or certified by TMDB."
+        } else {
+            "Get a free key at themoviedb.org (Settings › API), then from a computer run: " +
+                "scripts/rea.sh tmdb YOUR_KEY. Apps that recommend their own titles show them without a key."
+        },
+    )
 }
 
 @Composable
@@ -413,7 +472,7 @@ private fun PerformanceSection(first: FocusRequester, onNavigate: (SettingsSecti
     GlassRow(
         "Low-memory mode",
         value = if (context.rea.lowRam) "On (auto)" else "Off (auto)",
-        subtitle = "Smaller caches and buffers on 1 GB devices",
+        subtitle = "Smaller caches and buffers on sticks with 1.5 GB or less",
         onClick = {},
     )
     GlassRow("Storage", icon = ReaIcon.Storage, subtitle = "See which apps use the most space", onClick = { onNavigate(SettingsSection.Storage) })
@@ -468,8 +527,17 @@ private fun AboutSection(first: FocusRequester) {
     GlassRow("System", value = SystemInfo.osName(context), onClick = {})
     GlassRow("Display", value = "${metrics.widthPixels} × ${metrics.heightPixels}", onClick = {})
     GlassRow("Memory", value = SystemInfo.formatBytes(memory.totalBytes), onClick = {})
-    GlassRow("Privacy", value = "Offline", subtitle = "No internet permission, no analytics, no accounts", onClick = {})
-    InfoText("An independent launcher inspired by the tvOS design language. Not affiliated with Apple or Amazon.")
+    val online = LocalSettings.current.let { it.shelfCatalog && (it.tmdbKey.isNotBlank() || BuildConfig.TMDB_KEY.isNotBlank()) }
+    GlassRow(
+        "Privacy",
+        value = if (online) "TMDB only" else "Offline",
+        subtitle = if (online) "Fetches Top Shelf titles from TMDB; no analytics, no accounts" else "Nothing leaves the TV; no analytics, no accounts",
+        onClick = {},
+    )
+    InfoText(
+        "An independent launcher inspired by the tvOS design language. Not affiliated with Apple or Amazon. " +
+            "Movie and series data from TMDB; this product uses the TMDB API but is not endorsed or certified by TMDB.",
+    )
 }
 
 @Composable

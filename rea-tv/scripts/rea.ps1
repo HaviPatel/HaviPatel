@@ -9,6 +9,7 @@
 #   .\rea.ps1 clean
 #   .\rea.ps1 status
 #   .\rea.ps1 unlink
+#   .\rea.ps1 tmdb KEY            (Top Shelf series & movies from TMDB; "tmdb off" removes it)
 param(
     [Parameter(Position = 0)][string]$Command = "help",
     [Parameter(Position = 1)][string]$Target = "",
@@ -121,7 +122,25 @@ function Cmd-Setup {
     if ($services -like "*HomeWatchService*") { Ok "Home watcher running: Home now returns to REA TV" }
     elseif ((":$after:").Contains(":$($Service):")) { Warn "Home watcher not running; relying on the accessibility route" }
     else { Fail "Nothing can take over the Home button on this build. Open REA TV from Your Apps." }
+    # REA TV turns on its Top Shelf recommendations listener itself once it may write secure settings.
+    $listeners = Shell @("settings", "get", "secure", "enabled_notification_listeners")
+    if ($listeners -like "*$Pkg/*") { Ok "Top Shelf shows the series and movies your apps recommend" }
+    else { Warn "Top Shelf can't read app recommendations on this build" }
+    if ($env:REA_TMDB_KEY) { Cmd-Tmdb $env:REA_TMDB_KEY }
     Ok "Done. Press Home on your remote to try it."
+}
+
+# A TMDB key (free at themoviedb.org -> Settings -> API) lets the Top Shelf show what's popular on
+# Netflix, Prime Video, Disney+ and others. Sent over ADB: typing one with a remote is no fun.
+function Cmd-Tmdb([string]$Key) {
+    Need-Device
+    if (-not (Installed $Pkg)) { throw "REA TV isn't installed. Run: .\rea.ps1 install" }
+    if (-not $Key) { throw "Usage: .\rea.ps1 tmdb YOUR_KEY   (free at https://www.themoviedb.org/settings/api; 'off' removes it)" }
+    if ($Key -eq "off") { $Key = "none" }
+    # Only key characters: the value passes through the device's shell.
+    $Key = $Key -replace '[^A-Za-z0-9._-]', ''
+    $out = Shell @("am", "broadcast", "-n", "$Pkg/.system.ConfigReceiver", "-a", "$Pkg.SET_TMDB_KEY", "--es", "key", $Key)
+    if ($out -match "TMDB key [a-z]+") { Ok $Matches[0] } else { Fail "REA TV didn't take the key: $out" }
 }
 
 function Cmd-Unlink {
@@ -221,5 +240,6 @@ switch ($Command.ToLower()) {
     "optimize" { Cmd-Optimize }
     "clean" { Cmd-Clean }
     "status" { Cmd-Status }
-    default { Get-Content $MyInvocation.MyCommand.Path -TotalCount 11 | Select-Object -Skip 1 | ForEach-Object { $_.TrimStart("# ") } }
+    "tmdb" { Cmd-Tmdb $Target }
+    default { Get-Content $MyInvocation.MyCommand.Path -TotalCount 12 | Select-Object -Skip 1 | ForEach-Object { $_.TrimStart("# ") } }
 }

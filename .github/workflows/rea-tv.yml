@@ -49,6 +49,8 @@ jobs:
           REA_KEYSTORE_PASSWORD: ${{ secrets.REA_KEYSTORE_PASSWORD }}
           REA_KEY_ALIAS: ${{ secrets.REA_KEY_ALIAS }}
           REA_KEY_PASSWORD: ${{ secrets.REA_KEY_PASSWORD }}
+          # Optional: bakes a TMDB key in, so the Top Shelf shows series and movies out of the box.
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: |
           ./gradlew --no-daemon assembleRelease
           version=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)

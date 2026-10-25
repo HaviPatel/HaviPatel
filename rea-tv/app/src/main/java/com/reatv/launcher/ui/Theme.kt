@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.sp
 import com.reatv.launcher.R
 import com.reatv.launcher.data.ArtLoader
 import com.reatv.launcher.data.LauncherSettings
+import com.reatv.launcher.data.shelf.ShelfContent
 
 object Rea {
     val Ink = Color(0xFF0E1015)
@@ -65,3 +66,4 @@ object Rea {
 
 val LocalSettings = staticCompositionLocalOf<LauncherSettings> { error("LauncherSettings not provided") }
 val LocalArt = staticCompositionLocalOf<ArtLoader> { error("ArtLoader not provided") }
+val LocalShelfContent = staticCompositionLocalOf<ShelfContent> { error("ShelfContent not provided") }

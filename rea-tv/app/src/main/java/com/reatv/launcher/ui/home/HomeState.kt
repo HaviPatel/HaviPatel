@@ -51,6 +51,12 @@ class HomeState {
     /** App focused in the top row: drives the Top Shelf and the dynamic wallpaper. */
     var topApp: AppEntry? by mutableStateOf(null)
 
+    /** Focus is inside the Top Shelf's titles (Up from the top row), browsing them like tvOS. */
+    var shelfFocused by mutableStateOf(false)
+
+    /** False while another app is in front: the shelf stops advancing and loading. */
+    var visible by mutableStateOf(true)
+
     /** App being rearranged ("jiggle" mode), or null. */
     var movingKey: String? by mutableStateOf(null)
 

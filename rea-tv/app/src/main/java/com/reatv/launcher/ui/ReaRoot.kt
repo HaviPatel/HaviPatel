@@ -41,6 +41,7 @@ import com.reatv.launcher.MainActivity
 import com.reatv.launcher.data.AppEntry
 import com.reatv.launcher.data.AppOrder
 import com.reatv.launcher.data.GlassLevel
+import com.reatv.launcher.data.shelf.ShelfItem
 import com.reatv.launcher.glass.Aurora
 import com.reatv.launcher.glass.BackdropSource
 import com.reatv.launcher.glass.Backdrops
@@ -146,6 +147,15 @@ fun ReaRoot(activity: MainActivity, events: SharedFlow<HomeEvent>) {
     fun launchApp(app: AppEntry, rect: IntRect) {
         val ok = SystemIntents.launchApp(activity, app, view, rect.left, rect.top, rect.width, rect.height)
         if (ok) home.launchedApp = true else toast.show("Couldn't open ${app.label}")
+    }
+
+    /** A Top Shelf title: straight into it when its app gave us a way in, else the app itself. */
+    fun openShelfItem(app: AppEntry, item: ShelfItem) {
+        if (SystemIntents.openShelfItem(activity, item)) {
+            home.launchedApp = true
+        } else {
+            launchApp(app, IntRect(view.width / 2 - 1, view.height / 2 - 1, view.width / 2 + 1, view.height / 2 + 1))
+        }
     }
 
     fun finishMove() {
@@ -281,10 +291,12 @@ fun ReaRoot(activity: MainActivity, events: SharedFlow<HomeEvent>) {
                     }
                 }
                 HomeEvent.Resumed -> {
+                    home.visible = true
                     homeLinked = !isFireTv || !settings.replaceAmazonHome ||
                         HomeRedirect.isLinked(activity) || HomeRedirect.ensureServiceEnabled(activity)
                 }
                 HomeEvent.Hidden -> {
+                    home.visible = false
                     if (overlay == null) overlayBackdrop.current = null
                 }
             }
@@ -295,6 +307,7 @@ fun ReaRoot(activity: MainActivity, events: SharedFlow<HomeEvent>) {
         when {
             home.movingKey != null -> finishMove()
             overlay != null -> dismiss()
+            home.shelfFocused -> home.requestFocus(home.topApp?.key)
             home.focusedRow > 0 -> home.requestFocus(currentApps.getOrNull(home.focusedColumn)?.key ?: currentApps.firstOrNull()?.key)
         }
     }
@@ -327,6 +340,7 @@ fun ReaRoot(activity: MainActivity, events: SharedFlow<HomeEvent>) {
         CompositionLocalProvider(
             LocalSettings provides settings,
             LocalArt provides rea.art,
+            LocalShelfContent provides rea.shelf,
             LocalBackdrop provides wallpaper,
             LocalGlassLight provides light,
             LocalLightTarget provides lightTarget,
@@ -343,6 +357,7 @@ fun ReaRoot(activity: MainActivity, events: SharedFlow<HomeEvent>) {
                     interactive = overlay == null,
                     homeButtonWarning = isFireTv && settings.replaceAmazonHome && !homeLinked,
                     onLaunch = ::launchApp,
+                    onOpenShelfItem = ::openShelfItem,
                     onOptions = { show(Overlay.AppOptions(it)) },
                     onFixHomeButton = { show(Overlay.Settings(SettingsSection.HomeButton)) },
                 )

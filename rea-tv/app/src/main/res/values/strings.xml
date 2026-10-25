@@ -2,5 +2,6 @@
 <resources>
     <string name="app_name">REA TV</string>
     <string name="home_service_label">REA TV Home button</string>
+    <string name="recommendations_label">REA TV Top Shelf</string>
     <string name="home_service_description">Brings you back to REA TV when the Home button opens the Amazon home screen. It only reads which app is in front and never what is on screen.</string>
 </resources>

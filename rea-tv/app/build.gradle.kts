@@ -10,6 +10,11 @@ plugins {
 // release APK is signed with the debug key so it still installs on a Fire TV.
 val releaseKeystore: String? = System.getenv("REA_KEYSTORE")?.takeIf { file(it).exists() }
 
+// Optional TMDB key for Top Shelf series and movies (CI secret TMDB_API_KEY, or -PtmdbApiKey=...).
+// It can also be set on the TV later with scripts/rea.sh tmdb. Only key characters survive.
+val tmdbKey: String = (System.getenv("TMDB_API_KEY") ?: providers.gradleProperty("tmdbApiKey").orNull ?: "")
+    .filter { it.isLetterOrDigit() || it in "._-" }
+
 android {
     namespace = "com.reatv.launcher"
     compileSdk = 35
@@ -21,6 +26,7 @@ android {
         versionCode = 1
         versionName = "1.0.0"
         resourceConfigurations += listOf("en")
+        buildConfigField("String", "TMDB_KEY", "\"$tmdbKey\"")
     }
 
     signingConfigs {
@@ -97,4 +103,5 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
 
     testImplementation(libs.junit)
+    testImplementation(libs.json)
 }

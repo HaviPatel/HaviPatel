@@ -1,6 +1,7 @@
 package com.reatv.launcher.ui.home
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -30,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.reatv.launcher.data.AppEntry
+import com.reatv.launcher.data.shelf.ShelfItem
 import com.reatv.launcher.glass.LocalLightTarget
 import com.reatv.launcher.ui.LocalSettings
 import com.reatv.launcher.ui.Rea
@@ -47,6 +50,7 @@ fun HomeScreen(
     interactive: Boolean,
     homeButtonWarning: Boolean,
     onLaunch: (AppEntry, IntRect) -> Unit,
+    onOpenShelfItem: (AppEntry, ShelfItem) -> Unit,
     onOptions: (AppEntry) -> Unit,
     onFixHomeButton: () -> Unit,
 ) {
@@ -81,7 +85,15 @@ fun HomeScreen(
             }
         }
 
-        TopShelf(state.topApp, metrics, collapse)
+        TopShelf(state.topApp, metrics, state, interactive, collapse, onOpenShelfItem)
+
+        // Stepping up into the Top Shelf slides the rows down out of its way, as on tvOS.
+        val shelfOffsetPx = with(density) { (metrics.tileH * 0.8f).toPx() }
+        val shelfOffset by animateFloatAsState(
+            if (state.shelfFocused) shelfOffsetPx else 0f,
+            if (settings.reduceMotion) spring(stiffness = 2000f) else spring(dampingRatio = 0.85f, stiffness = 300f),
+            label = "shelfRows",
+        )
 
         // Dim the wallpaper while browsing deeper rows, like tvOS.
         Box(
@@ -103,7 +115,7 @@ fun HomeScreen(
             Modifier
                 .fillMaxWidth()
                 .wrapContentHeight(align = Alignment.Top, unbounded = true)
-                .graphicsLayer { translationY = -scroll.value },
+                .graphicsLayer { translationY = shelfOffset - scroll.value },
         ) {
             Spacer(Modifier.height(metrics.firstRowTop))
             val loadRange = (state.focusedRow - 2)..(state.focusedRow + 3)

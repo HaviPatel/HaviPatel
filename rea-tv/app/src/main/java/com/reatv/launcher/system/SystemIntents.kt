@@ -1,14 +1,17 @@
 package com.reatv.launcher.system
 
 import android.app.ActivityOptions
+import android.app.PendingIntent
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import android.view.View
 import com.reatv.launcher.data.AppEntry
 import com.reatv.launcher.data.AppRepository
+import com.reatv.launcher.data.shelf.ShelfItem
 
 /** Every outbound intent REA TV fires, each with a graceful fallback for Fire OS quirks. */
 object SystemIntents {
@@ -27,6 +30,25 @@ object SystemIntents {
         } catch (e: ActivityNotFoundException) {
             false
         } catch (e: SecurityException) {
+            false
+        }
+    }
+
+    /** Fires the recommending app's own "open this title" action. False if there is none or it's gone. */
+    fun openShelfItem(context: Context, item: ShelfItem): Boolean {
+        val pending = item.open ?: return false
+        return try {
+            if (Build.VERSION.SDK_INT >= 34) {
+                // Android 14+ asks the sender to vouch for starting the app's activity.
+                val options = ActivityOptions.makeBasic()
+                    .setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+                    .toBundle()
+                pending.send(context, 0, null, null, null, null, options)
+            } else {
+                pending.send()
+            }
+            true
+        } catch (e: PendingIntent.CanceledException) {
             false
         }
     }
