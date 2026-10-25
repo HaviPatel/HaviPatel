@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -96,7 +97,7 @@ fun TopShelf(
     collapse: () -> Float,
     onOpen: (AppEntry, ShelfItem) -> Unit,
 ) {
-    val shelfHeight = metrics.firstRowTop + metrics.tileH * 0.6f
+    val shelfHeight = metrics.shelfHeight
     Box(
         Modifier
             .fillMaxWidth()
@@ -187,9 +188,8 @@ private fun ShelfFor(
         val born = remember(k) { model }
         val m = (if (k == currentKey) model else born) ?: return@Crossfade
         when (m) {
-            is Brand -> BrandShelf(m.app, m.art, metrics, card)
-            // Only the shelf on its way in takes focus, never the one fading out.
-            is Titles -> TitlesCarousel(m.app, m.items, metrics, state, interactive && k == currentKey, onOpen)
+            is Brand -> BrandShelf(m.app, m.art, metrics, card, state, onScreen = k == currentKey)
+            is Titles -> TitlesCarousel(m.app, m.items, metrics, state, onScreen = k == currentKey, interactive = interactive, onOpen)
         }
     }
 }
@@ -204,7 +204,8 @@ private fun TitlesCarousel(
     items: List<ShelfItem>,
     metrics: HomeMetrics,
     state: HomeState,
-    takesFocus: Boolean,
+    onScreen: Boolean,
+    interactive: Boolean,
     onOpen: (AppEntry, ShelfItem) -> Unit,
 ) {
     val content = LocalShelfContent.current
@@ -214,6 +215,16 @@ private fun TitlesCarousel(
     val current = index.coerceIn(0, items.lastIndex)
     val item = items[current]
     val count = items.size
+    // Only the shelf on its way in takes focus, never the one fading out, and not while editing.
+    val takesFocus = onScreen && interactive && !state.editing
+
+    // The dock's glass refracts whatever the shelf shows.
+    val shown by produceState(content.peekBackdrop(item), item.key) {
+        if (value == null) value = content.backdrop(item)
+    }
+    LaunchedEffect(onScreen, shown, item.key) {
+        if (onScreen) state.shelfArt = ShelfGlass(shown?.asAndroidBitmap() ?: item.card, android.graphics.Color.BLACK)
+    }
 
     // Moves on by itself like tvOS, but only while you're watching it: not while you browse it,
     // not behind an overlay, not while another app is playing. The next backdrop is loaded first,
@@ -274,7 +285,7 @@ private fun TitlesCarousel(
         Row(
             Modifier
                 .align(Alignment.BottomStart)
-                .padding(start = metrics.edge, bottom = metrics.tileH * 0.6f + 18.dp)
+                .padding(start = metrics.edge, bottom = metrics.shelfHeight - metrics.firstRowTop + 18.dp)
                 .graphicsLayer {
                     alpha = focus
                     translationY = (1f - focus) * 10.dp.toPx()
@@ -300,7 +311,7 @@ private fun TitlesCarousel(
                 current,
                 Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = metrics.tileH * 0.6f + 30.dp),
+                    .padding(bottom = metrics.shelfHeight - metrics.firstRowTop + 30.dp),
             )
         }
     }
@@ -344,14 +355,15 @@ private fun Slide(item: ShelfItem, metrics: HomeMetrics, focus: () -> Float) {
         )
         Box(
             Modifier.fillMaxSize().background(
-                Brush.verticalGradient(0f to Color(0x40000000), 0.32f to Color.Transparent, 0.72f to Color(0xB3000000), 1f to Color.Black),
+                // Light enough behind the dock that its glass has art to refract.
+                Brush.verticalGradient(0f to Color(0x40000000), 0.28f to Color.Transparent, 0.6f to Color(0x99000000), 0.8f to Color(0xBF000000), 1f to Color.Black),
             ),
         )
 
         Column(
             Modifier
                 .align(Alignment.BottomStart)
-                .padding(start = metrics.edge, bottom = metrics.tileH * 0.6f + 54.dp)
+                .padding(start = metrics.edge, bottom = metrics.shelfHeight - metrics.firstRowTop + 54.dp)
                 .width(metrics.width * 0.44f)
                 .graphicsLayer { translationY = -focus() * 18.dp.toPx() },
         ) {
@@ -462,10 +474,13 @@ private fun PageDots(count: Int, current: Int, modifier: Modifier) {
 // --- Brand -----------------------------------------------------------------------------------
 
 @Composable
-private fun BrandShelf(app: AppEntry, shelf: ShelfArt, metrics: HomeMetrics, card: DpSize) {
+private fun BrandShelf(app: AppEntry, shelf: ShelfArt, metrics: HomeMetrics, card: DpSize, state: HomeState, onScreen: Boolean) {
     val density = LocalDensity.current
     val art = shelf.art
     val primary = Color(art.primary)
+    LaunchedEffect(onScreen, shelf) {
+        if (onScreen) state.shelfArt = ShelfGlass(shelf.ambient?.asAndroidBitmap(), art.primary)
+    }
     Box(Modifier.fillMaxSize()) {
         val ambient = shelf.ambient
         if (ambient != null) {
@@ -498,7 +513,7 @@ private fun BrandShelf(app: AppEntry, shelf: ShelfArt, metrics: HomeMetrics, car
         )
         Box(
             Modifier.fillMaxSize().background(
-                Brush.verticalGradient(0f to Color(0x33000000), 0.45f to Color.Transparent, 0.78f to Color(0xD9000000), 1f to Color.Black),
+                Brush.verticalGradient(0f to Color(0x33000000), 0.4f to Color.Transparent, 0.62f to Color(0x99000000), 0.82f to Color(0xCC000000), 1f to Color.Black),
             ),
         )
 

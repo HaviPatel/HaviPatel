@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.RadialGradient
+import android.graphics.RectF
 import android.graphics.Shader
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -98,6 +99,53 @@ object Backdrops {
     fun aurora(palette: AuroraPalette, width: Int, height: Int, blurWidth: Int): Backdrop {
         val sharp = Aurora.render(width, height, palette)
         return Backdrop(sharp.asImageBitmap(), Blur.downscaleBlur(sharp, blurWidth, radius = 3))
+    }
+
+    /**
+     * What the top-row dock refracts: the Top Shelf's art laid out as on screen (cropped into the
+     * shelf, a little above center), black below, at glass resolution. It skips the shelf's
+     * darkening, so the dock shows the art through brighter and more colourful than around it, the
+     * way tvOS 26's dock does. [art] null means the shelf is a color wash of [color].
+     */
+    fun dock(art: Bitmap?, color: Int, screenW: Int, screenH: Int, shelfHeight: Int, blurWidth: Int): Backdrop {
+        val w = blurWidth
+        val h = (blurWidth.toLong() * screenH / screenW).toInt().coerceAtLeast(1)
+        val shelf = (shelfHeight.toLong() * h / screenH).toFloat()
+        val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(out)
+        canvas.drawColor(Color.BLACK)
+        val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
+        if (art != null && !art.isRecycled && art.width > 0 && art.height > 0) {
+            val scale = maxOf(w / art.width.toFloat(), shelf / art.height)
+            val dw = art.width * scale
+            val dh = art.height * scale
+            val left = (w - dw) / 2f
+            val top = (shelf - dh) * 0.25f // BiasAlignment(0, -0.5), as the shelf draws it
+            canvas.save()
+            canvas.clipRect(0f, 0f, w.toFloat(), shelf)
+            canvas.drawBitmap(art, null, RectF(left, top, left + dw, top + dh), paint)
+            canvas.restore()
+        } else {
+            paint.shader = RadialGradient(
+                w.toFloat(), 0f, w * 1.1f,
+                intArrayOf(darken(color, 0.35f), darken(color, 0.85f), Color.BLACK),
+                floatArrayOf(0f, 0.5f, 1f),
+                Shader.TileMode.CLAMP,
+            )
+            canvas.drawRect(0f, 0f, w.toFloat(), shelf, paint)
+            paint.shader = null
+        }
+        // The shelf's own last stretch into black, so the dock's lower edge isn't lit by a hard cut.
+        paint.shader = LinearGradient(0f, shelf * 0.9f, 0f, shelf, 0x00000000, 0xFF000000.toInt(), Shader.TileMode.CLAMP)
+        canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), paint)
+        val blurred = Blur.downscaleBlur(out, w, radius = 3)
+        if (blurred !== out) out.recycle()
+        return Backdrop(blurred.asImageBitmap(), blurred)
+    }
+
+    private fun darken(color: Int, amount: Float): Int {
+        val k = 1f - amount
+        return Color.rgb((Color.red(color) * k).toInt(), (Color.green(color) * k).toInt(), (Color.blue(color) * k).toInt())
     }
 
     /** A PixelCopy snapshot of the window, heavily blurred, for overlays (Control Center, menus, settings). */

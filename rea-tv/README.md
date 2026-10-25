@@ -18,12 +18,13 @@ Amazon bloat and tune RAM and storage.
 
 | | |
 |---|---|
-| **Home** | tvOS-style grid with nothing else on screen: like tvOS, there's no clock or button bar (the time is in Control Center). Every tile is the app's own banner, so the logos are the real ones. The top row owns the edge-to-edge **Top Shelf**: the focused app's banner blurred across the whole shelf (or a wash of its colors when the banner is mostly white), fading into the black behind the rows, with the app's logo lifted off its banner as the title, the way tvOS shows a show's title treatment. Dark wordmarks turn light for the dark shelf, as brands do on dark backgrounds. Banners that are a photo, or whose logo runs into the edge, show the name and the banner as a card instead. Deeper rows scroll up and pin near the top. |
+| **Home** | tvOS-style grid with nothing else on screen: like tvOS, there's no clock or button bar (the time is in Control Center). Every tile is the app's own banner, so the logos are the real ones. The top row sits in a **Liquid Glass dock**, as on tvOS 26: the Top Shelf's art runs down behind it, and the dock refracts it (blurred, magnified at its center, brighter and more colourful than around it) with a rim that catches the light over the focused app. The top row owns the edge-to-edge **Top Shelf**: the focused app's banner blurred across the whole shelf (or a wash of its colors when the banner is mostly white), fading into the black behind the rows, with the app's logo lifted off its banner as the title, the way tvOS shows a show's title treatment. Dark wordmarks turn light for the dark shelf, as brands do on dark backgrounds. Banners that are a photo, or whose logo runs into the edge, show the name and the banner as a card instead. Deeper rows scroll up and pin near the top. |
 | **Series & movies** | Hover an app in the top row and its Top Shelf becomes a carousel of series and movies, like tvOS: full-screen key art, the title's logo, a line of details (Series · Drama · 2019 · TV-14), a two-line description and page dots, moving on every 8 seconds. Press **Up** to step into it, **Left/Right** to browse, **OK** to open, **Down** or **Back** to return. The titles come from the app itself (what it recommends: keep watching, new episodes) or, with a TMDB key, from what's popular on that service in your country. See [Top Shelf series & movies](#top-shelf-series--movies). |
 | **Focus** | Tiles lift toward you with a deep shadow, tilt from the direction you came, settle with a spring, and catch a specular glint. Moving focus ticks and selecting clicks, using Fire TV's own navigation sounds, so its Navigation Sounds setting turns them off. |
 | **Liquid Glass** | Every panel refracts what's behind it (magnified, saturated, blurred backdrop). One shared light glides toward whatever has focus, so rim highlights and glows sweep across all the glass on screen. |
 | **Control Center** (☰ Menu button) | A glass panel from the right with the time in large type and round glass controls: Network, Bluetooth, **Memory** (free it up), Storage, Screensaver, Fire TV settings, REA TV settings, Amazon Home, plus live RAM and storage meters. |
-| **Hold OK on an app** | Open, Move (jiggle mode, then use the arrows), Move to / remove from Top Shelf, Hide, App info & cache, Uninstall. |
+| **Hold OK on an app** | Open, **Edit Home Screen**, Move, Move to / Remove from Dock, Hide, App info & cache, Uninstall. |
+| **Edit Home Screen** | As on tvOS: every app on screen jiggles. OK picks up the focused app, the arrows carry it anywhere (into or out of the dock), OK drops it so you can pick up the next, and Back (or Home) finishes. *Move* jumps straight to carrying the app you held OK on. |
 | **Settings** (Control Center › REA TV) | Wallpapers (Aurora, Ocean, Sunset, Forest, Graphite, Midnight, or Top Shelf colors), glass level (Clear, Regular, Frosted), icon size, labels, 24-hour clock, Reduce motion / transparency, hidden apps, per-app storage, memory booster, device info. Rows are plain text until focus turns them into bright glass, as in tvOS, and the category list has a liquid lens that stretches as it slides. |
 | **Home button** | On Fire TV, Home brings you back to REA TV (see below). On Android TV / Google TV, pick REA TV as the Home app. |
 
@@ -67,7 +68,8 @@ Then press **Home** on the remote.
 |---|---|
 | D-pad | Move focus |
 | OK | Open |
-| Hold OK | App options (Move, Top Shelf, Hide, Info, Uninstall) |
+| Hold OK | App options (Edit Home Screen, Move, Dock, Hide, Info, Uninstall) |
+| OK, arrows (editing) | Pick up / drop an app, carry it; Back when done |
 | ☰ Menu | Control Center |
 | Up (from the top row) | Into the Top Shelf's series and movies; Left/Right browse, OK opens |
 | Back | Close the overlay, leave the Top Shelf, or jump back to the top row |

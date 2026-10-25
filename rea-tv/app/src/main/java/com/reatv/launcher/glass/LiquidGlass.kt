@@ -64,6 +64,9 @@ data class GlassStyle(
 
     /** Same glass, darker: for large panels carrying lots of text. */
     fun panel(): GlassStyle = copy(shade = Color(0x73080A10), tint = tint.copy(alpha = tint.alpha * 0.7f))
+
+    /** The top-row dock: clear over the Top Shelf's art, a little smoked so the tiles keep their contrast. */
+    fun dock(): GlassStyle = copy(shade = Color(0x59000000), lens = lens * 0.6f, saturation = minOf(saturation, 1.5f), glow = glow * 0.7f)
 }
 
 /**

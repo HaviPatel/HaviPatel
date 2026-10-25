@@ -1,6 +1,7 @@
 package com.reatv.launcher.ui.home
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.StartOffset
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -56,6 +57,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -87,6 +89,7 @@ fun AppTile(
     loadArt: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    labelGap: Dp = 10.dp,
 ) {
     val settings = LocalSettings.current
     val sounds = LocalUiSounds.current
@@ -118,11 +121,20 @@ fun AppTile(
     val tilt = remember { Animatable(0f) }
     val sheen = remember { Animatable(1f) }
     val moving = state.movingKey == app.key
-    val jiggle: State<Float>? = if (moving) {
+    // Edit Home Screen: every app on screen jiggles, a little out of step with its neighbours like
+    // tvOS, and the one you're holding jiggles harder. Rows out of view stay still.
+    val jiggles = !reduceMotion && (moving || (state.editing && loadArt))
+    val jiggle: State<Float>? = if (jiggles) {
+        val amplitude = if (moving) 1.6f else 1.1f
+        val period = 118 + ((row * 7 + column * 13) % 5) * 9
         rememberInfiniteTransition(label = "jiggle").animateFloat(
-            initialValue = -1.6f,
-            targetValue = 1.6f,
-            animationSpec = infiniteRepeatable(tween(130, easing = LinearEasing), RepeatMode.Reverse),
+            initialValue = -amplitude,
+            targetValue = amplitude,
+            animationSpec = infiniteRepeatable(
+                tween(period, easing = LinearEasing),
+                RepeatMode.Reverse,
+                initialStartOffset = StartOffset(if ((row + column) % 2 == 0) 0 else period),
+            ),
             label = "jiggleAngle",
         )
     } else {
@@ -179,7 +191,7 @@ fun AppTile(
         ) {
             TileArtwork(app, art)
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(labelGap))
         BasicText(
             text = app.label,
             modifier = Modifier.graphicsLayer {

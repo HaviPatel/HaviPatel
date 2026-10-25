@@ -28,10 +28,19 @@ class HomeMetricsTest {
     }
 
     @Test
+    fun onlyTheDockAddsRoomBelowItsRow() {
+        assertEquals((metrics.pitch + metrics.dockGap).value, (metrics.rowTop(1) - metrics.rowTop(0)).value, 0.01f)
+        assertEquals(metrics.pitch.value, (metrics.rowTop(3) - metrics.rowTop(2)).value, 0.01f)
+        // The second row starts below the dock and below the shelf's art.
+        assertTrue(metrics.rowTop(1) > metrics.rowTop(0) + metrics.tileH + metrics.dockPad)
+        assertTrue(metrics.rowTop(1) >= metrics.shelfHeight)
+    }
+
+    @Test
     fun scrollStopsAtTheEndOfContent() {
         val rows = 3
         val last = metrics.scrollFor(row = rows - 1, rows = rows)
-        val contentBottom = metrics.firstRowTop + metrics.pitch * rows + 40.dp
+        val contentBottom = metrics.firstRowTop + metrics.pitch * rows + metrics.dockGap + 40.dp
         assertEquals((contentBottom - 540.dp).value, last.value, 0.01f)
         assertTrue(metrics.scrollFor(row = 1, rows = rows) <= last)
     }

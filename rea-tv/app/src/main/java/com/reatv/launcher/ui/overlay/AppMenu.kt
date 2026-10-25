@@ -43,7 +43,7 @@ import com.reatv.launcher.ui.ReaIcon
 import com.reatv.launcher.ui.home.TileArtwork
 import com.reatv.launcher.ui.requestFocusSoon
 
-enum class AppAction { Open, Move, ToggleTopShelf, Hide, Info, Uninstall }
+enum class AppAction { Open, EditHome, Move, ToggleTopShelf, Hide, Info, Uninstall }
 
 /** Hold-OK menu for an app: a glass card that pops from the center. */
 @Composable
@@ -68,8 +68,9 @@ fun AnimatedVisibilityScope.AppMenu(
     val isApp = app.kind == AppEntry.Kind.App
     val items = buildList {
         add(Triple(AppAction.Open, ReaIcon.Play, "Open"))
+        add(Triple(AppAction.EditHome, ReaIcon.Grid, "Edit Home Screen"))
         add(Triple(AppAction.Move, ReaIcon.Move, "Move"))
-        add(Triple(AppAction.ToggleTopShelf, ReaIcon.Star, if (inTopRow) "Remove from Top Shelf" else "Move to Top Shelf"))
+        add(Triple(AppAction.ToggleTopShelf, ReaIcon.Star, if (inTopRow) "Remove from Dock" else "Move to Dock"))
         add(Triple(AppAction.Hide, ReaIcon.EyeOff, "Hide from Home"))
         if (isApp) add(Triple(AppAction.Info, ReaIcon.Info, "App info & cache"))
         if (isApp && !app.isSystem) add(Triple(AppAction.Uninstall, ReaIcon.Trash, "Uninstall"))

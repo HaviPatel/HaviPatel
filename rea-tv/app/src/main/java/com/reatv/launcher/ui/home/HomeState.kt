@@ -1,5 +1,6 @@
 package com.reatv.launcher.ui.home
 
+import android.graphics.Bitmap
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -27,17 +28,33 @@ class HomeMetrics(val width: Dp, val height: Dp, val columns: Int) {
     val firstRowTop = height * 0.6f
     private val pivot = height * 0.13f
 
+    /** The Liquid Glass dock around the top row, as on tvOS 26: its margin and its corner. */
+    val dockPad = 16.dp
+    val dockCorner = corner + dockPad
+
+    /** Room the dock adds under the top row, for its bottom edge and the label beneath it. */
+    val dockGap = dockPad + 4.dp
+
+    /** The Top Shelf's art runs down behind the dock, then fades into the black behind the rows. */
+    val shelfHeight = firstRowTop + tileH + dockPad + 28.dp
+
+    fun rowTop(row: Int): Dp = firstRowTop + pitch * row + if (row > 0) dockGap else 0.dp
+
     /** tvOS-like scrolling: the top row shows the Top Shelf, deeper rows pin near the top. */
     fun scrollFor(row: Int, rows: Int): Dp {
         if (row <= 0) return 0.dp
-        val target = firstRowTop + pitch * row - pivot
-        val maxScroll = max(0.dp, firstRowTop + pitch * rows + 40.dp - height)
+        val target = rowTop(row) - pivot
+        val maxScroll = max(0.dp, rowTop(rows) + 40.dp - height)
         return max(0.dp, min(target, maxScroll))
     }
 
     fun tileOffset(row: Int, column: Int, scroll: Dp): DpOffset =
-        DpOffset(edge + (tileW + gap) * column, firstRowTop + pitch * row - scroll)
+        DpOffset(edge + (tileW + gap) * column, rowTop(row) - scroll)
 }
+
+/** The Top Shelf's current art ([image], or a wash of [color] when null), as the dock sees it. */
+@Immutable
+class ShelfGlass(val image: Bitmap?, val color: Int)
 
 @Stable
 class HomeState {
@@ -53,6 +70,12 @@ class HomeState {
 
     /** Focus is inside the Top Shelf's titles (Up from the top row), browsing them like tvOS. */
     var shelfFocused by mutableStateOf(false)
+
+    /** What the Top Shelf shows right now, for the dock's glass to refract. */
+    var shelfArt: ShelfGlass? by mutableStateOf(null)
+
+    /** tvOS "Edit Home Screen": every app jiggles; OK picks one up ([movingKey]) and drops it. */
+    var editing by mutableStateOf(false)
 
     /** False while another app is in front: the shelf stops advancing and loading. */
     var visible by mutableStateOf(true)

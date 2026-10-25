@@ -158,8 +158,10 @@ fun ReaRoot(activity: MainActivity, events: SharedFlow<HomeEvent>) {
         }
     }
 
-    fun finishMove() {
+    /** Leaves Edit Home Screen, dropping whatever is held where it is. */
+    fun finishEditing() {
         home.movingKey = null
+        home.editing = false
         toast.dismiss()
     }
 
@@ -169,8 +171,12 @@ fun ReaRoot(activity: MainActivity, events: SharedFlow<HomeEvent>) {
         when (action) {
             AppAction.Open -> launchApp(app, IntRect(view.width / 2 - 1, view.height / 2 - 1, view.width / 2 + 1, view.height / 2 + 1))
             AppAction.Move -> {
+                home.editing = true
                 home.movingKey = app.key
-                toast.show("Move ${app.label} with the arrows, then press OK")
+            }
+            AppAction.EditHome -> {
+                home.editing = true
+                home.movingKey = null
             }
             AppAction.ToggleTopShelf -> {
                 val index = apps.indexOfFirst { it.key == app.key }
@@ -185,29 +191,43 @@ fun ReaRoot(activity: MainActivity, events: SharedFlow<HomeEvent>) {
         }
     }
 
-    fun handleMoveKey(native: AndroidKeyEvent): Boolean {
-        val key = home.movingKey ?: return false
+    /**
+     * Edit Home Screen, as on tvOS: OK picks up the focused app or drops the one held (and you stay
+     * in edit mode to pick up another); the arrows move what's held, into or out of the dock too;
+     * with nothing held they move focus as usual. Back or Menu finishes.
+     */
+    fun handleEditKey(native: AndroidKeyEvent): Boolean {
+        val code = native.keyCode
+        if (code == AndroidKeyEvent.KEYCODE_BACK || code == AndroidKeyEvent.KEYCODE_ESCAPE ||
+            code == AndroidKeyEvent.KEYCODE_BUTTON_B || code == AndroidKeyEvent.KEYCODE_MENU
+        ) {
+            // On release, and swallowed both ways, so it doesn't also reach Home's own Back or Menu.
+            if (native.action == AndroidKeyEvent.ACTION_UP) finishEditing()
+            return true
+        }
+        val key = home.movingKey
+        if (isSelectKey(code)) {
+            if (native.action == AndroidKeyEvent.ACTION_DOWN && native.repeatCount == 0) {
+                home.movingKey = if (key != null) null else home.focusedKey
+                sounds.onSelect()
+            }
+            return true
+        }
+        if (key == null) return false
         if (native.action != AndroidKeyEvent.ACTION_DOWN) return true
         val columns = settings.columns.coerceIn(4, 6)
-        val delta = when (native.keyCode) {
+        val delta = when (code) {
             AndroidKeyEvent.KEYCODE_DPAD_LEFT -> -1
             AndroidKeyEvent.KEYCODE_DPAD_RIGHT -> 1
             AndroidKeyEvent.KEYCODE_DPAD_UP -> -columns
             AndroidKeyEvent.KEYCODE_DPAD_DOWN -> columns
-            AndroidKeyEvent.KEYCODE_BACK, AndroidKeyEvent.KEYCODE_ESCAPE, AndroidKeyEvent.KEYCODE_BUTTON_B -> {
-                finishMove()
-                return true
-            }
-            else -> {
-                if (isSelectKey(native.keyCode)) finishMove()
-                return true
-            }
+            else -> return true
         }
         // Re-derive the list: key repeats can arrive before the previous move has recomposed.
         val list = AppOrder.arrange(allApps, settings.order, settings.hidden)
         val from = list.indexOfFirst { it.key == key }
         if (from < 0) {
-            finishMove()
+            home.movingKey = null
             return true
         }
         val to = (from + delta).coerceIn(0, list.lastIndex)
@@ -225,7 +245,7 @@ fun ReaRoot(activity: MainActivity, events: SharedFlow<HomeEvent>) {
                 AndroidKeyEvent.KEYCODE_DPAD_UP, AndroidKeyEvent.KEYCODE_DPAD_DOWN -> home.lastDirX = 0
             }
         }
-        if (home.movingKey != null) return handleMoveKey(native)
+        if (home.editing) return handleEditKey(native)
         if (native.keyCode == AndroidKeyEvent.KEYCODE_MENU) {
             if (native.action == AndroidKeyEvent.ACTION_UP) {
                 when (overlay) {
@@ -280,7 +300,7 @@ fun ReaRoot(activity: MainActivity, events: SharedFlow<HomeEvent>) {
         events.collect { event ->
             when (event) {
                 HomeEvent.HomePressed -> {
-                    if (home.movingKey != null) finishMove()
+                    if (home.editing) finishEditing()
                     if (home.launchedApp) {
                         home.launchedApp = false
                     } else {
@@ -305,7 +325,7 @@ fun ReaRoot(activity: MainActivity, events: SharedFlow<HomeEvent>) {
 
     BackHandler {
         when {
-            home.movingKey != null -> finishMove()
+            home.editing -> finishEditing()
             overlay != null -> dismiss()
             home.shelfFocused -> home.requestFocus(home.topApp?.key)
             home.focusedRow > 0 -> home.requestFocus(currentApps.getOrNull(home.focusedColumn)?.key ?: currentApps.firstOrNull()?.key)
