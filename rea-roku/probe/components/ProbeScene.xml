@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="ProbeScene" extends="Scene">
+    <interface>
+        <field id="text" type="string" onChange="onText" />
+        <field id="request" type="string" alwaysNotify="true" />
+    </interface>
+    <script type="text/brightscript" uri="ProbeScene.brs" />
+    <children>
+        <Rectangle color="0x000000FF" width="1920" height="1080" />
+        <Label id="body" translation="[120,110]" width="1680" height="860" wrap="true" lineSpacing="12" font="font:MediumSystemFont" color="0xFFFFFFFF" />
+    </children>
+</component>
