@@ -2,6 +2,9 @@ name: REA TV
 
 on:
   push:
+    # Listing tags alone would stop branch pushes from building: GitHub then only runs for tags.
+    branches:
+      - "**"
     paths:
       - "rea-tv/**"
       - ".github/workflows/rea-tv.yml"
