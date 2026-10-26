@@ -7,27 +7,31 @@ package com.reatv.launcher.system
  *         flg=0x10200000 cmp=com.amazon.tv.launcher/.ui.HomeActivity_vNext} from uid 1000 on display 0
  *     I/am_resume_activity(  612): [0,183836245,8,com.amazon.tv.launcher/.ui.HomeActivity_vNext]
  *
- * The first is a Home press (or anything else starting the HOME intent), the second any activity
- * coming back to the front, e.g. Back out of an app onto Amazon's home. Plain Kotlin, unit tested.
+ * The first is an activity start: a Home press when it carries the HOME category, otherwise
+ * something deliberately opening a page (a Prime Video or Live page inside Amazon's home, a voice
+ * result). The second is any activity coming back to the front, e.g. Back out of an app onto
+ * Amazon's home. Plain Kotlin, unit tested.
  */
 object LogcatHome {
     data class Activity(val packageName: String, val className: String)
+
+    /** [home]: the HOME intent, i.e. the Home button. */
+    data class Start(val activity: Activity, val home: Boolean, val fromUid: Int?)
 
     data class HomeStart(val activity: Activity, val fromUid: Int?)
 
     private val CMP = Regex("""cmp=([\w.]+)/([\w.$]+)""")
     private val UID = Regex("""from uid (\d+)""")
 
-    fun parseHomeStart(line: String): HomeStart? {
-        if (!line.contains("ActivityManager") || !line.contains("START ") ||
-            !line.contains("android.intent.category.HOME")
-        ) {
-            return null
-        }
+    fun parseStart(line: String): Start? {
+        if (!line.contains("ActivityManager") || !line.contains("START ")) return null
         val match = CMP.find(line) ?: return null
         val uid = UID.find(line)?.groupValues?.get(1)?.toIntOrNull()
-        return HomeStart(activity(match.groupValues[1], match.groupValues[2]), uid)
+        return Start(activity(match.groupValues[1], match.groupValues[2]), line.contains("android.intent.category.HOME"), uid)
     }
+
+    fun parseHomeStart(line: String): HomeStart? =
+        parseStart(line)?.takeIf { it.home }?.let { HomeStart(it.activity, it.fromUid) }
 
     fun parseResume(line: String): Activity? {
         if (!line.contains("am_resume_activity")) return null

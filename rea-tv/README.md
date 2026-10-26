@@ -109,7 +109,9 @@ itself back, two ways (`setup` turns on both; whichever works on your build does
   [tv-vibehack](https://github.com/ljis120301/tv-vibehack/blob/fire-tv-support/FIRETV.md) fork of
   cleanyourtv). So a small foreground service follows two system-log tags with `READ_LOGS`
   (granted over ADB): a HOME start aimed at Amazon's launcher (the Home button) and Amazon's home
-  screen resuming (Back out of an app). It reads nothing else and has no network access.
+  screen resuming (Back out of an app). A page opened inside Amazon's home on purpose (a Prime
+  Video or Live page, a voice result) carries no HOME category, and is left alone until an app or
+  the Home button comes next. It reads nothing else and sends nothing anywhere.
 - **Accessibility service (Fire OS 7/8).** It subscribes to *window-state changes only* and
   **cannot read screen content** (`canRetrieveWindowContent=false`).
 

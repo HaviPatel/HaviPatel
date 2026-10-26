@@ -103,12 +103,18 @@ class HomeWatchService : Service() {
     }
 
     private fun handle(line: String, myUid: Int) {
-        val start = LogcatHome.parseHomeStart(line)
+        val start = LogcatHome.parseStart(line)
         if (start != null) {
             // Our own "open Amazon Home" also starts HOME; only presses from the system count.
             if (start.fromUid == myUid || start.activity.packageName !in homes.packages) return
-            HomeRedirect.clearBypass()
-            if (enabled()) HomeRedirect.redirect(this)
+            if (start.home) {
+                HomeRedirect.clearBypass()
+                if (enabled()) HomeRedirect.redirect(this)
+            } else {
+                // Something opened a page inside Amazon's home on purpose (a Prime Video or Live
+                // page, a voice result): leave it alone until an app or the Home button comes next.
+                HomeRedirect.allowStockHomeFor(STOCK_PAGE_MS)
+            }
             return
         }
         val resumed = LogcatHome.parseResume(line) ?: return
@@ -150,6 +156,7 @@ class HomeWatchService : Service() {
         private const val NOTIFICATION_ID = 7
         private const val EXTRA_BOOT = "boot"
         private const val RETRY_MIN_MS = 1_000L
+        private const val STOCK_PAGE_MS = 10 * 60 * 1000L
         private const val RETRY_MAX_MS = 5 * 60 * 1000L
 
         @Volatile
